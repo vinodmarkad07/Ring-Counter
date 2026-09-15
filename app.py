@@ -16,19 +16,21 @@ Deploy (get a public URL): see README_deploy.md
 """
 
 import os
-import uuid
+import base64
+import tempfile
 
 import cv2
 import numpy as np
 from scipy.signal import find_peaks
-from flask import Flask, request, render_template, jsonify, send_from_directory
+from flask import Flask, request, render_template, jsonify
 
 app = Flask(__name__)
 
-UPLOAD_DIR = os.path.join(os.path.dirname(__file__), "uploads")
-OUTPUT_DIR = os.path.join(os.path.dirname(__file__), "outputs")
-os.makedirs(UPLOAD_DIR, exist_ok=True)
-os.makedirs(OUTPUT_DIR, exist_ok=True)
+# Vercel (and most serverless hosts) only allow writes to /tmp, and don't
+# guarantee the same instance handles a later request -- so we process
+# fully in-memory / /tmp within a single request and never rely on a
+# separate route to re-fetch a saved file.
+UPLOAD_DIR = tempfile.gettempdir()
 
 
 # --------------------------------------------------------------------------
@@ -191,7 +193,7 @@ def compute_confidence(consistency, blur_score, brightness, n_peaks, box_reliabl
     return "Low"
 
 
-def process_image(path, out_path):
+def process_image(path):
     img = cv2.imread(path)
     if img is None:
         raise ValueError("Could not read uploaded image")
@@ -223,7 +225,14 @@ def process_image(path, out_path):
         cv2.line(annotated, (sx, yy), (sx + sw, yy), (0, 255, 0), 1)
     cv2.putText(annotated, str(ring_count), (10, 60),
                 cv2.FONT_HERSHEY_SIMPLEX, 2.0, (0, 255, 255), 3, cv2.LINE_AA)
-    cv2.imwrite(out_path, annotated)
+
+    # Encode the annotated image straight into the response as base64 --
+    # no second request, no dependency on a file surviving between
+    # requests (which serverless platforms don't guarantee).
+    ok, buf = cv2.imencode(".jpg", annotated)
+    if not ok:
+        raise ValueError("Could not encode result image")
+    image_data_url = "data:image/jpeg;base64," + base64.b64encode(buf).decode("ascii")
 
     return {
         "ring_count": ring_count,
@@ -233,6 +242,7 @@ def process_image(path, out_path):
         "brightness": round(brightness, 1),
         "glare": round(glare * 100, 1),
         "box_reliable": box_reliable,
+        "image_data_url": image_data_url,
     }
 
 
@@ -251,23 +261,20 @@ def count():
 
     file = request.files["photo"]
     ext = os.path.splitext(file.filename)[1] or ".jpg"
-    uid = uuid.uuid4().hex
-    in_path = os.path.join(UPLOAD_DIR, f"{uid}{ext}")
-    out_path = os.path.join(OUTPUT_DIR, f"{uid}_out.jpg")
+    in_path = os.path.join(UPLOAD_DIR, f"upload{ext}")
     file.save(in_path)
 
     try:
-        result = process_image(in_path, out_path)
+        result = process_image(in_path)
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+    finally:
+        # /tmp on serverless platforms is size-limited and can persist
+        # across warm invocations, so clean up after ourselves.
+        if os.path.exists(in_path):
+            os.remove(in_path)
 
-    result["image_url"] = f"/result-image/{uid}_out.jpg"
     return jsonify(result)
-
-
-@app.route("/result-image/<filename>")
-def result_image(filename):
-    return send_from_directory(OUTPUT_DIR, filename)
 
 
 if __name__ == "__main__":
