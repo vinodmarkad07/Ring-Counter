@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ring Stack Counter</title>
+<style>
+  * { box-sizing: border-box; }
+  body {
+    font-family: -apple-system, Roboto, Arial, sans-serif;
+    background: #111418; color: #eee; margin: 0; padding: 20px;
+    display: flex; flex-direction: column; align-items: center;
+  }
+  h1 { font-size: 22px; margin-bottom: 4px; }
+  p.sub { color: #999; font-size: 14px; margin-top: 0; text-align: center; }
+  .card {
+    background: #1c2027; border-radius: 14px; padding: 20px;
+    width: 100%; max-width: 480px; margin-top: 16px;
+  }
+  label.upload-btn {
+    display: block; text-align: center; padding: 16px;
+    background: #2f6fed; color: white; border-radius: 10px;
+    font-size: 17px; font-weight: 600; cursor: pointer; margin-bottom: 12px;
+  }
+  input[type=file] { display: none; }
+  #preview { width: 100%; border-radius: 10px; margin-top: 10px; display: none; }
+  #submitBtn {
+    width: 100%; padding: 14px; margin-top: 12px; font-size: 17px;
+    font-weight: 600; border: none; border-radius: 10px;
+    background: #22c55e; color: #062b12; cursor: pointer; display: none;
+  }
+  #submitBtn:disabled { opacity: 0.6; }
+  #status { text-align: center; margin-top: 10px; color: #aaa; font-size: 14px; }
+  #resultCard { display: none; margin-top: 16px; text-align: center; }
+  #resultImg { width: 100%; border-radius: 10px; }
+  .count { font-size: 44px; font-weight: 800; color: #22c55e; margin: 8px 0 0; }
+  .confidence { font-size: 15px; margin-bottom: 10px; }
+  .metrics { font-size: 12px; color: #999; line-height: 1.6; }
+  .conf-High { color: #22c55e; }
+  .conf-Medium { color: #eab308; }
+  .conf-Low { color: #ef4444; }
+</style>
+</head>
+<body>
+  <h1>🔵 Ring Stack Counter</h1>
+  <p class="sub">Take or choose a photo of the ring stack</p>
+
+  <div class="card">
+    <label class="upload-btn" for="photoInput">📷 Take / Choose Photo</label>
+    <input type="file" id="photoInput" accept="image/*" capture="environment">
+    <img id="preview">
+    <button id="submitBtn">Count Rings</button>
+    <div id="status"></div>
+  </div>
+
+  <div class="card" id="resultCard">
+    <img id="resultImg">
+    <div class="count" id="ringCount"></div>
+    <div class="confidence" id="confidenceText"></div>
+    <div class="metrics" id="metricsText"></div>
+  </div>
+
+<script>
+const photoInput = document.getElementById('photoInput');
+const preview = document.getElementById('preview');
+const submitBtn = document.getElementById('submitBtn');
+const status = document.getElementById('status');
+const resultCard = document.getElementById('resultCard');
+
+let selectedFile = null;
+
+photoInput.addEventListener('change', () => {
+  if (!photoInput.files.length) return;
+  selectedFile = photoInput.files[0];
+  preview.src = URL.createObjectURL(selectedFile);
+  preview.style.display = 'block';
+  submitBtn.style.display = 'block';
+  resultCard.style.display = 'none';
+  status.textContent = '';
+});
+
+submitBtn.addEventListener('click', async () => {
+  if (!selectedFile) return;
+  submitBtn.disabled = true;
+  status.textContent = 'Processing...';
+
+  const formData = new FormData();
+  formData.append('photo', selectedFile);
+
+  try {
+    const res = await fetch('/count', { method: 'POST', body: formData });
+    const data = await res.json();
+    if (data.error) {
+      status.textContent = 'Error: ' + data.error;
+      submitBtn.disabled = false;
+      return;
+    }
+    document.getElementById('resultImg').src = data.image_url + '?t=' + Date.now();
+    document.getElementById('ringCount').textContent = data.ring_count;
+    const confEl = document.getElementById('confidenceText');
+    confEl.textContent = 'Confidence: ' + data.confidence;
+    confEl.className = 'confidence conf-' + data.confidence;
+    document.getElementById('metricsText').textContent =
+      `Gap consistency: ${data.consistency} | Blur: ${data.blur_score} | ` +
+      `Brightness: ${data.brightness} | Glare: ${data.glare}%`;
+    resultCard.style.display = 'block';
+    status.textContent = '';
+  } catch (err) {
+    status.textContent = 'Error: ' + err.message;
+  }
+  submitBtn.disabled = false;
+});
+</script>
+</body>
+</html>
