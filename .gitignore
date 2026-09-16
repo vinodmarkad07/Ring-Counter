@@ -1,0 +1,10 @@
+uploads/*.jpg
+uploads/*.jpeg
+uploads/*.png
+outputs/*.jpg
+!uploads/.gitkeep
+!outputs/.gitkeep
+__pycache__/
+*.pyc
+.env
+.DS_Store

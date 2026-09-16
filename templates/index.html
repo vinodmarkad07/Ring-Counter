@@ -1,0 +1,342 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>RingCount AI — Ring Stack Counter</title>
+<style>
+  :root{
+    --bg:#0b0d12; --panel:#141821; --panel2:#1b2029; --border:#262c38;
+    --text:#eef1f6; --muted:#8b93a5; --accent:#3b82f6; --accent2:#8b5cf6;
+    --good:#22c55e; --warn:#eab308; --bad:#ef4444;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0; background:var(--bg); color:var(--text);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;
+    min-height:100vh;
+  }
+  header{
+    padding:18px 20px; display:flex; align-items:center; gap:10px;
+    border-bottom:1px solid var(--border);
+    background:linear-gradient(180deg,#11141b,#0b0d12);
+  }
+  header .logo{font-size:22px;}
+  header h1{font-size:17px; margin:0; font-weight:700;}
+  header .tag{font-size:11px; color:var(--muted); margin-left:auto; text-align:right;}
+
+  main{
+    max-width:1100px; margin:0 auto; padding:20px;
+    display:grid; grid-template-columns:1fr; gap:20px;
+  }
+  @media (min-width:860px){
+    main{grid-template-columns: 1fr 1fr; align-items:start;}
+  }
+  /* Landscape phones: force 2-col layout even under 860px width so both
+     panels are visible without excess vertical scrolling. */
+  @media (max-width:859px) and (orientation:landscape){
+    main{grid-template-columns: 1fr 1fr;}
+  }
+
+  .card{
+    background:var(--panel); border:1px solid var(--border);
+    border-radius:16px; padding:18px;
+  }
+  .card h2{
+    font-size:13px; text-transform:uppercase; letter-spacing:.06em;
+    color:var(--muted); margin:0 0 14px 0; display:flex; align-items:center; gap:6px;
+  }
+
+  .capture-buttons{ display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+  .cap-btn{
+    display:flex; flex-direction:column; align-items:center; justify-content:center;
+    gap:6px; padding:18px 10px; border-radius:12px; border:1px solid var(--border);
+    cursor:pointer; font-weight:600; font-size:14px; color:var(--text);
+    background:var(--panel2); transition:transform .1s ease, border-color .15s ease;
+  }
+  .cap-btn:active{ transform:scale(0.97); }
+  .cap-btn.primary{ background:linear-gradient(135deg,var(--accent),#2563eb); border-color:transparent; }
+  .cap-btn.secondary{ background:linear-gradient(135deg,var(--accent2),#7c3aed); border-color:transparent; }
+  .cap-btn .icon{ font-size:26px; }
+  .cap-btn .sub{ font-size:11px; font-weight:400; opacity:.85; }
+
+  .dropzone{
+    margin-top:12px; border:2px dashed var(--border); border-radius:12px;
+    padding:16px; text-align:center; color:var(--muted); font-size:13px;
+    transition:border-color .15s ease, background .15s ease;
+  }
+  .dropzone.drag{ border-color:var(--accent); background:rgba(59,130,246,.08); color:var(--text); }
+
+  input[type=file]{ display:none; }
+
+  .preview-wrap{ margin-top:14px; display:none; }
+  .preview-wrap.show{ display:block; }
+  .preview-wrap img{ width:100%; border-radius:12px; display:block; max-height:340px; object-fit:contain; background:#000; }
+  .preview-meta{ display:flex; justify-content:space-between; align-items:center; margin-top:8px; font-size:12px; color:var(--muted); }
+  .chip{ background:var(--panel2); border:1px solid var(--border); border-radius:999px; padding:3px 10px; font-size:11px; }
+
+  .action-row{ display:flex; gap:10px; margin-top:14px; }
+  .btn{
+    flex:1; padding:13px; border-radius:10px; border:none; cursor:pointer;
+    font-weight:700; font-size:14px; display:flex; align-items:center; justify-content:center; gap:8px;
+  }
+  .btn-analyze{ background:linear-gradient(135deg,var(--good),#16a34a); color:#04250f; }
+  .btn-analyze:disabled{ opacity:.5; cursor:not-allowed; }
+  .btn-retry{ background:var(--panel2); color:var(--text); border:1px solid var(--border); flex:none; padding:13px 16px; }
+
+  .status-line{
+    margin-top:12px; font-size:13px; color:var(--muted); display:none;
+    align-items:center; gap:8px;
+  }
+  .status-line.show{ display:flex; }
+  .spinner{
+    width:14px; height:14px; border-radius:50%;
+    border:2px solid var(--border); border-top-color:var(--accent);
+    animation:spin 0.8s linear infinite;
+  }
+  @keyframes spin{ to{ transform:rotate(360deg); } }
+
+  .error-box{
+    display:none; margin-top:12px; background:rgba(239,68,68,.1);
+    border:1px solid rgba(239,68,68,.35); color:#fca5a5;
+    padding:12px 14px; border-radius:10px; font-size:13px; line-height:1.5;
+  }
+  .error-box.show{ display:block; }
+
+  /* Result panel */
+  #resultCard{ display:none; }
+  #resultCard.show{ display:block; }
+  #resultImg{ width:100%; border-radius:12px; display:block; background:#000; }
+
+  .result-top{ display:flex; align-items:flex-end; justify-content:space-between; margin:16px 0 4px; }
+  .count-display{ font-size:52px; font-weight:800; line-height:1; color:var(--good); }
+  .count-label{ font-size:12px; color:var(--muted); text-transform:uppercase; letter-spacing:.05em; margin-top:4px;}
+  .conf-badge{
+    padding:6px 14px; border-radius:999px; font-size:12px; font-weight:700;
+    text-transform:uppercase; letter-spacing:.04em;
+  }
+  .conf-High{ background:rgba(34,197,94,.15); color:var(--good); border:1px solid rgba(34,197,94,.4); }
+  .conf-Medium{ background:rgba(234,179,8,.15); color:var(--warn); border:1px solid rgba(234,179,8,.4); }
+  .conf-Low{ background:rgba(239,68,68,.15); color:var(--bad); border:1px solid rgba(239,68,68,.4); }
+
+  .metrics-grid{
+    display:grid; grid-template-columns:repeat(4,1fr); gap:8px; margin-top:16px;
+  }
+  .metric{
+    background:var(--panel2); border:1px solid var(--border); border-radius:10px;
+    padding:10px 8px; text-align:center;
+  }
+  .metric .v{ font-size:16px; font-weight:700; }
+  .metric .l{ font-size:10px; color:var(--muted); text-transform:uppercase; margin-top:2px; }
+
+  .low-warning{
+    margin-top:14px; padding:10px 12px; border-radius:10px; font-size:12px;
+    background:rgba(239,68,68,.08); border:1px solid rgba(239,68,68,.3); color:#fca5a5;
+  }
+
+  .empty-state{
+    display:flex; flex-direction:column; align-items:center; justify-content:center;
+    color:var(--muted); padding:50px 20px; text-align:center; font-size:13px; gap:8px;
+  }
+  .empty-state .icon{ font-size:40px; opacity:.5; }
+
+  .legend{ display:flex; gap:14px; margin-top:12px; flex-wrap:wrap; font-size:11px; color:var(--muted); }
+  .legend span{ display:inline-flex; align-items:center; gap:5px; }
+  .swatch{ width:10px; height:10px; border-radius:2px; display:inline-block; }
+
+  footer{ text-align:center; color:var(--muted); font-size:11px; padding:24px 20px 30px; }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">🔵</div>
+  <h1>RingCount AI</h1>
+  <div class="tag">OpenCV + Python<br>Automatic stack detection</div>
+</header>
+
+<main>
+  <!-- LEFT: capture / upload -->
+  <div class="card" id="captureCard">
+    <h2>📷 New Photo</h2>
+    <div class="capture-buttons">
+      <label class="cap-btn primary" for="cameraInput">
+        <span class="icon">📷</span>
+        Take Photo
+        <span class="sub">Open camera</span>
+      </label>
+      <label class="cap-btn secondary" for="fileInput">
+        <span class="icon">🖼️</span>
+        Choose Photo
+        <span class="sub">From gallery / files</span>
+      </label>
+    </div>
+    <input type="file" id="cameraInput" accept="image/*" capture="environment">
+    <input type="file" id="fileInput" accept="image/*">
+
+    <div class="dropzone" id="dropzone">📥 or drag &amp; drop an image here</div>
+
+    <div class="preview-wrap" id="previewWrap">
+      <img id="previewImg" alt="Selected photo preview">
+      <div class="preview-meta">
+        <span id="fileMeta">—</span>
+        <span class="chip" id="fileSizeChip">—</span>
+      </div>
+    </div>
+
+    <div class="action-row" id="actionRow" style="display:none;">
+      <button class="btn btn-analyze" id="analyzeBtn">⚡ Analyze Rings</button>
+      <button class="btn btn-retry" id="retryBtn">↺ Retake</button>
+    </div>
+
+    <div class="status-line" id="statusLine"><span class="spinner"></span><span id="statusText">Processing…</span></div>
+    <div class="error-box" id="errorBox"></div>
+
+    <div class="legend">
+      <span><span class="swatch" style="background:#ffa500;"></span>Detected stack</span>
+      <span><span class="swatch" style="background:#5000ff;"></span>Analysis column</span>
+      <span><span class="swatch" style="background:#00ff50;"></span>Ring boundary</span>
+    </div>
+  </div>
+
+  <!-- RIGHT: result -->
+  <div class="card" id="resultCardOuter">
+    <h2>📊 Detection Result</h2>
+    <div class="empty-state" id="emptyState">
+      <div class="icon">🔍</div>
+      Take or choose a photo to count rings
+    </div>
+    <div id="resultCard">
+      <img id="resultImg" alt="Annotated result">
+      <div class="result-top">
+        <div>
+          <div class="count-display" id="ringCount">0</div>
+          <div class="count-label">Rings detected</div>
+        </div>
+        <div class="conf-badge" id="confBadge">—</div>
+      </div>
+      <div class="metrics-grid">
+        <div class="metric"><div class="v" id="mConsistency">—</div><div class="l">Consistency</div></div>
+        <div class="metric"><div class="v" id="mBlur">—</div><div class="l">Sharpness</div></div>
+        <div class="metric"><div class="v" id="mBrightness">—</div><div class="l">Brightness</div></div>
+        <div class="metric"><div class="v" id="mGlare">—</div><div class="l">Glare</div></div>
+      </div>
+      <div class="low-warning" id="lowWarning" style="display:none;">
+        ⚠️ Low confidence — retake with the stack filling more of the frame and less background clutter behind it.
+      </div>
+    </div>
+  </div>
+</main>
+
+<footer>RingCount AI · Powered by OpenCV + scipy · Works on desktop and mobile, portrait or landscape</footer>
+
+<script>
+const cameraInput = document.getElementById('cameraInput');
+const fileInput = document.getElementById('fileInput');
+const dropzone = document.getElementById('dropzone');
+const previewWrap = document.getElementById('previewWrap');
+const previewImg = document.getElementById('previewImg');
+const fileMeta = document.getElementById('fileMeta');
+const fileSizeChip = document.getElementById('fileSizeChip');
+const actionRow = document.getElementById('actionRow');
+const analyzeBtn = document.getElementById('analyzeBtn');
+const retryBtn = document.getElementById('retryBtn');
+const statusLine = document.getElementById('statusLine');
+const statusText = document.getElementById('statusText');
+const errorBox = document.getElementById('errorBox');
+const emptyState = document.getElementById('emptyState');
+const resultCard = document.getElementById('resultCard');
+
+let selectedFile = null;
+
+function humanSize(bytes){
+  if (bytes < 1024) return bytes + ' B';
+  if (bytes < 1024*1024) return (bytes/1024).toFixed(0) + ' KB';
+  return (bytes/1024/1024).toFixed(1) + ' MB';
+}
+
+function selectFile(file){
+  if (!file) return;
+  selectedFile = file;
+  previewImg.src = URL.createObjectURL(file);
+  fileMeta.textContent = file.name || 'photo.jpg';
+  fileSizeChip.textContent = humanSize(file.size);
+  previewWrap.classList.add('show');
+  actionRow.style.display = 'flex';
+  errorBox.classList.remove('show');
+  statusLine.classList.remove('show');
+}
+
+cameraInput.addEventListener('change', () => selectFile(cameraInput.files[0]));
+fileInput.addEventListener('change', () => selectFile(fileInput.files[0]));
+
+['dragenter','dragover'].forEach(evt =>
+  dropzone.addEventListener(evt, e => { e.preventDefault(); dropzone.classList.add('drag'); })
+);
+['dragleave','drop'].forEach(evt =>
+  dropzone.addEventListener(evt, e => { e.preventDefault(); dropzone.classList.remove('drag'); })
+);
+dropzone.addEventListener('drop', e => {
+  const file = e.dataTransfer.files[0];
+  if (file && file.type.startsWith('image/')) selectFile(file);
+});
+
+retryBtn.addEventListener('click', () => {
+  selectedFile = null;
+  previewWrap.classList.remove('show');
+  actionRow.style.display = 'none';
+  errorBox.classList.remove('show');
+  cameraInput.value = '';
+  fileInput.value = '';
+});
+
+analyzeBtn.addEventListener('click', async () => {
+  if (!selectedFile) return;
+  analyzeBtn.disabled = true;
+  statusText.textContent = 'Uploading & analyzing…';
+  statusLine.classList.add('show');
+  errorBox.classList.remove('show');
+
+  const formData = new FormData();
+  formData.append('photo', selectedFile);
+
+  try {
+    const res = await fetch('/count', { method: 'POST', body: formData });
+    const data = await res.json();
+
+    if (!res.ok || data.error) {
+      errorBox.textContent = '⚠️ ' + (data.error || 'Something went wrong.');
+      errorBox.classList.add('show');
+      statusLine.classList.remove('show');
+      analyzeBtn.disabled = false;
+      return;
+    }
+
+    document.getElementById('resultImg').src = data.image_data_url;
+    document.getElementById('ringCount').textContent = data.ring_count;
+
+    const badge = document.getElementById('confBadge');
+    badge.textContent = data.confidence;
+    badge.className = 'conf-badge conf-' + data.confidence;
+
+    document.getElementById('mConsistency').textContent = data.consistency;
+    document.getElementById('mBlur').textContent = data.blur_score;
+    document.getElementById('mBrightness').textContent = data.brightness;
+    document.getElementById('mGlare').textContent = data.glare + '%';
+
+    document.getElementById('lowWarning').style.display =
+      data.confidence === 'Low' ? 'block' : 'none';
+
+    emptyState.style.display = 'none';
+    resultCard.classList.add('show');
+    statusLine.classList.remove('show');
+  } catch (err) {
+    errorBox.textContent = '⚠️ Network error: ' + err.message;
+    errorBox.classList.add('show');
+    statusLine.classList.remove('show');
+  }
+  analyzeBtn.disabled = false;
+});
+</script>
+</body>
+</html>
