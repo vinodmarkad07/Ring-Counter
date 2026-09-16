@@ -53,6 +53,7 @@ class Config:
     MIN_RIDGE_COUNT = 6                 # a real stack has many ring seams
     MIN_PERIODICITY = 0.35              # how regular the spacing must be
     VERTICAL_MARGIN_FRAC = 0.03         # trim a little off top/bottom
+    CENTER_BIAS_STRENGTH = 0.4          # 0 = ignore position, 1 = strongly prefer frame center
 
     LOCAL_NORM_WINDOW = 41
     PEAK_DISTANCE_FRAC = 0.010
@@ -143,12 +144,21 @@ def locate_stack_column(enhanced):
     col_w = max(10, int(w * Config.COLUMN_WIDTH_FRAC))
     step = max(4, int(w * Config.COLUMN_SCAN_STEP_FRAC))
 
+    # Bias toward columns near the horizontal center of the frame. Product
+    # photos are shot with the target stack centered; when multiple stacks
+    # are in frame, pure ridge-score alone can pick a strong side stack
+    # instead of the one the photographer actually intended to measure.
+    frame_center = w / 2.0
+
     best = None  # (score, x0, x1, n_peaks, periodicity)
     for x0 in range(0, max(1, w - col_w), step):
         x1 = min(w, x0 + col_w)
         profile = _column_profile(enhanced, x0, x1, y0, y1)
         n_peaks, periodicity = _ridge_score(profile)
-        score = n_peaks * periodicity
+        col_center = (x0 + x1) / 2.0
+        center_dist_frac = abs(col_center - frame_center) / (w / 2.0)
+        center_weight = 1.0 - Config.CENTER_BIAS_STRENGTH * min(1.0, center_dist_frac)
+        score = n_peaks * periodicity * center_weight
         if best is None or score > best[0]:
             best = (score, x0, x1, n_peaks, periodicity)
 
