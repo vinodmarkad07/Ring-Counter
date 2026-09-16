@@ -2,114 +2,614 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
 <title>Ring Stack Counter</title>
 <style>
-  * { box-sizing: border-box; }
-  body {
-    font-family: -apple-system, Roboto, Arial, sans-serif;
-    background: #111418; color: #eee; margin: 0; padding: 20px;
-    display: flex; flex-direction: column; align-items: center;
-  }
-  h1 { font-size: 22px; margin-bottom: 4px; }
-  p.sub { color: #999; font-size: 14px; margin-top: 0; text-align: center; }
-  .card {
-    background: #1c2027; border-radius: 14px; padding: 20px;
-    width: 100%; max-width: 480px; margin-top: 16px;
-  }
-  label.upload-btn {
-    display: block; text-align: center; padding: 16px;
-    background: #2f6fed; color: white; border-radius: 10px;
-    font-size: 17px; font-weight: 600; cursor: pointer; margin-bottom: 12px;
-  }
-  input[type=file] { display: none; }
-  #preview { width: 100%; border-radius: 10px; margin-top: 10px; display: none; }
-  #submitBtn {
-    width: 100%; padding: 14px; margin-top: 12px; font-size: 17px;
-    font-weight: 600; border: none; border-radius: 10px;
-    background: #22c55e; color: #062b12; cursor: pointer; display: none;
-  }
-  #submitBtn:disabled { opacity: 0.6; }
-  #status { text-align: center; margin-top: 10px; color: #aaa; font-size: 14px; }
-  #resultCard { display: none; margin-top: 16px; text-align: center; }
-  #resultImg { width: 100%; border-radius: 10px; }
-  .count { font-size: 44px; font-weight: 800; color: #22c55e; margin: 8px 0 0; }
-  .confidence { font-size: 15px; margin-bottom: 10px; }
-  .metrics { font-size: 12px; color: #999; line-height: 1.6; }
-  .conf-High { color: #22c55e; }
-  .conf-Medium { color: #eab308; }
-  .conf-Low { color: #ef4444; }
+/* ── Reset & Base ── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --bg:        #0d1117;
+  --surface:   #161b22;
+  --surface2:  #21262d;
+  --border:    #30363d;
+  --text:      #e6edf3;
+  --text-muted:#8b949e;
+  --accent:    #2f81f7;
+  --accent-h:  #388bfd;
+  --green:     #3fb950;
+  --yellow:    #d29922;
+  --red:       #f85149;
+  --orange:    #f0883e;
+  --radius:    14px;
+}
+html { height: 100%; }
+body {
+  min-height: 100%;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 24px 16px 48px;
+}
+
+/* ── Header ── */
+.header {
+  text-align: center;
+  margin-bottom: 24px;
+}
+.header .logo {
+  width: 52px; height: 52px;
+  background: linear-gradient(135deg, var(--accent), #a371f7);
+  border-radius: 50%;
+  display: inline-flex; align-items: center; justify-content: center;
+  font-size: 26px;
+  margin-bottom: 10px;
+  box-shadow: 0 0 24px rgba(47,129,247,0.35);
+}
+.header h1 {
+  font-size: clamp(20px, 5vw, 26px);
+  font-weight: 700;
+  letter-spacing: -0.5px;
+}
+.header p {
+  color: var(--text-muted);
+  font-size: 14px;
+  margin-top: 4px;
+}
+
+/* ── Card ── */
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 20px;
+  width: 100%;
+  max-width: 500px;
+  margin-bottom: 16px;
+}
+
+/* ── Upload zone ── */
+.upload-zone {
+  border: 2px dashed var(--border);
+  border-radius: 10px;
+  padding: 28px 16px;
+  text-align: center;
+  cursor: pointer;
+  transition: border-color .2s, background .2s;
+  position: relative;
+}
+.upload-zone:hover, .upload-zone.drag-over {
+  border-color: var(--accent);
+  background: rgba(47,129,247,0.06);
+}
+.upload-zone input[type=file] {
+  position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%;
+}
+.upload-zone .uz-icon { font-size: 38px; margin-bottom: 8px; display: block; }
+.upload-zone .uz-label {
+  font-size: 16px; font-weight: 600; color: var(--accent);
+}
+.upload-zone .uz-sub {
+  font-size: 12px; color: var(--text-muted); margin-top: 4px;
+}
+
+/* ── Preview ── */
+#preview-wrap {
+  display: none;
+  margin-top: 14px;
+  position: relative;
+  border-radius: 10px;
+  overflow: hidden;
+  border: 1px solid var(--border);
+}
+#preview-wrap img {
+  width: 100%;
+  display: block;
+}
+.preview-badge {
+  position: absolute;
+  top: 8px; right: 8px;
+  background: rgba(0,0,0,.6);
+  color: #fff;
+  font-size: 11px;
+  padding: 3px 8px;
+  border-radius: 20px;
+  backdrop-filter: blur(4px);
+}
+
+/* ── Buttons ── */
+.btn {
+  display: block;
+  width: 100%;
+  padding: 15px;
+  border: none;
+  border-radius: 10px;
+  font-size: 16px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: opacity .2s, transform .1s;
+  margin-top: 12px;
+  letter-spacing: .3px;
+}
+.btn:active { transform: scale(0.98); }
+.btn:disabled { opacity: 0.45; cursor: not-allowed; transform: none; }
+.btn-primary { background: var(--accent); color: #fff; }
+.btn-primary:hover:not(:disabled) { background: var(--accent-h); }
+.btn-success { background: var(--green); color: #021a06; }
+.btn-success:hover:not(:disabled) { filter: brightness(1.1); }
+.btn-ghost {
+  background: var(--surface2);
+  color: var(--text-muted);
+  border: 1px solid var(--border);
+  font-weight: 500;
+}
+
+/* ── Status bar ── */
+#status {
+  display: none;
+  align-items: center;
+  gap: 10px;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 10px 14px;
+  margin-top: 12px;
+  font-size: 13px;
+  color: var(--text-muted);
+}
+#status.show { display: flex; }
+.spinner {
+  width: 16px; height: 16px;
+  border: 2px solid var(--border);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin .7s linear infinite;
+  flex-shrink: 0;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ── Error banner ── */
+#error-banner {
+  display: none;
+  background: rgba(248,81,73,0.12);
+  border: 1px solid rgba(248,81,73,0.4);
+  border-radius: 8px;
+  padding: 10px 14px;
+  margin-top: 12px;
+  font-size: 13px;
+  color: var(--red);
+}
+#error-banner.show { display: block; }
+
+/* ── Result card ── */
+#result-card { display: none; }
+.result-img-wrap {
+  border-radius: 10px;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  position: relative;
+}
+.result-img-wrap img { width: 100%; display: block; }
+.result-overlay {
+  position: absolute;
+  bottom: 0; left: 0; right: 0;
+  background: linear-gradient(transparent, rgba(0,0,0,.75));
+  padding: 20px 12px 10px;
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+}
+.result-count {
+  font-size: 52px;
+  font-weight: 900;
+  color: #00ffaa;
+  line-height: 1;
+  text-shadow: 0 2px 12px rgba(0,0,0,.8);
+}
+.result-count-label {
+  font-size: 14px;
+  color: rgba(255,255,255,.7);
+  font-weight: 500;
+}
+.conf-pill {
+  padding: 4px 12px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: .5px;
+  text-transform: uppercase;
+}
+.conf-High   { background: rgba(63,185,80,.2);  color: var(--green);  border: 1px solid var(--green); }
+.conf-Medium { background: rgba(210,153,34,.2); color: var(--yellow); border: 1px solid var(--yellow); }
+.conf-Low    { background: rgba(248,81,73,.2);  color: var(--red);    border: 1px solid var(--red); }
+
+/* ── Metrics grid ── */
+.metrics-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-top: 14px;
+}
+.metric-box {
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 10px 12px;
+}
+.metric-box .m-label {
+  font-size: 11px;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: .5px;
+}
+.metric-box .m-value {
+  font-size: 18px;
+  font-weight: 700;
+  margin-top: 2px;
+}
+.metric-box .m-bar {
+  height: 3px;
+  background: var(--border);
+  border-radius: 2px;
+  margin-top: 6px;
+  overflow: hidden;
+}
+.metric-box .m-bar-fill {
+  height: 100%;
+  border-radius: 2px;
+  background: var(--accent);
+  transition: width .6s ease;
+}
+
+/* ── Tips ── */
+.tips {
+  margin-top: 16px;
+  padding: 12px 14px;
+  background: rgba(47,129,247,0.07);
+  border: 1px solid rgba(47,129,247,0.25);
+  border-radius: 8px;
+}
+.tips h4 { font-size: 12px; color: var(--accent); font-weight: 700; margin-bottom: 6px; text-transform: uppercase; letter-spacing: .5px; }
+.tips ul { list-style: none; }
+.tips li { font-size: 12px; color: var(--text-muted); padding: 2px 0; }
+.tips li::before { content: "→ "; color: var(--accent); }
+
+/* ── Legend ── */
+.legend {
+  display: flex; gap: 14px; flex-wrap: wrap;
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-top: 10px;
+}
+.legend span { display: flex; align-items: center; gap: 5px; }
+.dot { width: 10px; height: 10px; border-radius: 2px; display: inline-block; }
+.dot-orange { background: #f0883e; }
+.dot-blue   { background: #388bfd; }
+.dot-green  { background: #3fb950; }
+
+/* ── Footer ── */
+footer {
+  margin-top: 32px;
+  font-size: 12px;
+  color: var(--text-muted);
+  text-align: center;
+}
 </style>
 </head>
 <body>
-  <h1>🔵 Ring Stack Counter</h1>
-  <p class="sub">Take or choose a photo of the ring stack</p>
 
-  <div class="card">
-    <label class="upload-btn" for="photoInput">📷 Take / Choose Photo</label>
+<!-- Header -->
+<div class="header">
+  <div class="logo">⭕</div>
+  <h1>Ring Stack Counter</h1>
+  <p>AI-powered ring detection from a single photo</p>
+</div>
+
+<!-- Upload card -->
+<div class="card" id="upload-card">
+  <div class="upload-zone" id="upload-zone">
     <input type="file" id="photoInput" accept="image/*" capture="environment">
-    <img id="preview">
-    <button id="submitBtn">Count Rings</button>
-    <div id="status"></div>
+    <span class="uz-icon">📷</span>
+    <div class="uz-label">Take or Choose Photo</div>
+    <div class="uz-sub">JPG / PNG · auto-compressed before upload</div>
   </div>
 
-  <div class="card" id="resultCard">
-    <img id="resultImg">
-    <div class="count" id="ringCount"></div>
-    <div class="confidence" id="confidenceText"></div>
-    <div class="metrics" id="metricsText"></div>
+  <div id="preview-wrap">
+    <img id="preview" alt="Selected photo">
+    <div class="preview-badge" id="size-badge"></div>
   </div>
+
+  <button class="btn btn-success" id="submitBtn" style="display:none">
+    ⚙️ &nbsp;Count Rings
+  </button>
+  <button class="btn btn-ghost" id="retakeBtn" style="display:none">
+    🔄 &nbsp;Choose Different Photo
+  </button>
+
+  <div id="status">
+    <div class="spinner"></div>
+    <span id="status-text">Processing…</span>
+  </div>
+  <div id="error-banner"></div>
+</div>
+
+<!-- Result card -->
+<div class="card" id="result-card">
+  <div class="result-img-wrap">
+    <img id="resultImg" alt="Annotated result">
+    <div class="result-overlay">
+      <div>
+        <div class="result-count" id="ringCount">—</div>
+        <div class="result-count-label">rings detected</div>
+      </div>
+      <div id="confPill" class="conf-pill"></div>
+    </div>
+  </div>
+
+  <div class="legend">
+    <span><i class="dot dot-orange"></i> Stack region</span>
+    <span><i class="dot dot-blue"></i> Analysis strip</span>
+    <span><i class="dot dot-green"></i> Detected rings</span>
+  </div>
+
+  <div class="metrics-grid">
+    <div class="metric-box">
+      <div class="m-label">Consistency</div>
+      <div class="m-value" id="m-consistency">—</div>
+      <div class="m-bar"><div class="m-bar-fill" id="bar-consistency" style="width:0%"></div></div>
+    </div>
+    <div class="metric-box">
+      <div class="m-label">Blur Score</div>
+      <div class="m-value" id="m-blur">—</div>
+      <div class="m-bar"><div class="m-bar-fill" id="bar-blur" style="width:0%;background:var(--green)"></div></div>
+    </div>
+    <div class="metric-box">
+      <div class="m-label">Brightness</div>
+      <div class="m-value" id="m-brightness">—</div>
+      <div class="m-bar"><div class="m-bar-fill" id="bar-brightness" style="width:0%;background:var(--yellow)"></div></div>
+    </div>
+    <div class="metric-box">
+      <div class="m-label">Glare</div>
+      <div class="m-value" id="m-glare">—</div>
+      <div class="m-bar"><div class="m-bar-fill" id="bar-glare" style="width:0%;background:var(--red)"></div></div>
+    </div>
+  </div>
+
+  <div class="tips" id="tips-box" style="display:none">
+    <h4>💡 Tips for better accuracy</h4>
+    <ul id="tips-list"></ul>
+  </div>
+
+  <button class="btn btn-primary" id="newPhotoBtn" style="margin-top:16px">
+    📷 &nbsp;Count Another Photo
+  </button>
+</div>
+
+<footer>Ring Stack Counter &nbsp;·&nbsp; Powered by OpenCV</footer>
 
 <script>
-const photoInput = document.getElementById('photoInput');
-const preview = document.getElementById('preview');
-const submitBtn = document.getElementById('submitBtn');
-const status = document.getElementById('status');
-const resultCard = document.getElementById('resultCard');
+// ──────────────────────────────────────────────
+// DOM refs
+// ──────────────────────────────────────────────
+const photoInput   = document.getElementById('photoInput');
+const uploadZone   = document.getElementById('upload-zone');
+const previewWrap  = document.getElementById('preview-wrap');
+const previewImg   = document.getElementById('preview');
+const sizeBadge    = document.getElementById('size-badge');
+const submitBtn    = document.getElementById('submitBtn');
+const retakeBtn    = document.getElementById('retakeBtn');
+const statusEl     = document.getElementById('status');
+const statusText   = document.getElementById('status-text');
+const errorBanner  = document.getElementById('error-banner');
+const resultCard   = document.getElementById('result-card');
+const newPhotoBtn  = document.getElementById('newPhotoBtn');
 
-let selectedFile = null;
+let compressedBlob = null;
 
-photoInput.addEventListener('change', () => {
+// ──────────────────────────────────────────────
+// Compress image via canvas → JPEG ≤ 3 MB
+// ──────────────────────────────────────────────
+function compressImage(file, maxWidth = 1200, quality = 0.82) {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => {
+      let w = img.width, h = img.height;
+      if (w > maxWidth) { h = Math.round(h * maxWidth / w); w = maxWidth; }
+      const canvas = document.createElement('canvas');
+      canvas.width = w; canvas.height = h;
+      canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+      canvas.toBlob(blob => {
+        if (!blob) { reject(new Error('Compression failed')); return; }
+        // If still large, compress more aggressively
+        if (blob.size > 3 * 1024 * 1024) {
+          canvas.toBlob(resolve, 'image/jpeg', 0.65);
+        } else {
+          resolve(blob);
+        }
+      }, 'image/jpeg', quality);
+    };
+    img.onerror = () => reject(new Error('Could not load image'));
+    img.src = URL.createObjectURL(file);
+  });
+}
+
+function fmtKB(bytes) {
+  return bytes < 1024 * 1024
+    ? `${(bytes / 1024).toFixed(0)} KB`
+    : `${(bytes / 1024 / 1024).toFixed(1)} MB`;
+}
+
+function showError(msg) {
+  errorBanner.textContent = '⚠ ' + msg;
+  errorBanner.classList.add('show');
+  statusEl.classList.remove('show');
+}
+
+function clearError() {
+  errorBanner.classList.remove('show');
+}
+
+function setStatus(msg) {
+  statusText.textContent = msg;
+  statusEl.classList.add('show');
+  clearError();
+}
+
+function hideStatus() {
+  statusEl.classList.remove('show');
+}
+
+// ──────────────────────────────────────────────
+// Photo selected
+// ──────────────────────────────────────────────
+photoInput.addEventListener('change', async () => {
   if (!photoInput.files.length) return;
-  selectedFile = photoInput.files[0];
-  preview.src = URL.createObjectURL(selectedFile);
-  preview.style.display = 'block';
-  submitBtn.style.display = 'block';
+  const file = photoInput.files[0];
+  clearError();
+  setStatus('Compressing image…');
   resultCard.style.display = 'none';
-  status.textContent = '';
-});
-
-submitBtn.addEventListener('click', async () => {
-  if (!selectedFile) return;
-  submitBtn.disabled = true;
-  status.textContent = 'Processing...';
-
-  const formData = new FormData();
-  formData.append('photo', selectedFile);
 
   try {
-    const res = await fetch('/count', { method: 'POST', body: formData });
-    const data = await res.json();
-    if (data.error) {
-      status.textContent = 'Error: ' + data.error;
-      submitBtn.disabled = false;
+    compressedBlob = await compressImage(file);
+  } catch (e) {
+    hideStatus();
+    showError('Could not process image: ' + e.message);
+    return;
+  }
+
+  previewImg.src = URL.createObjectURL(compressedBlob);
+  previewWrap.style.display = 'block';
+  sizeBadge.textContent = fmtKB(compressedBlob.size);
+  submitBtn.style.display = 'block';
+  retakeBtn.style.display = 'block';
+  hideStatus();
+});
+
+// Drag-and-drop
+uploadZone.addEventListener('dragover', e => { e.preventDefault(); uploadZone.classList.add('drag-over'); });
+uploadZone.addEventListener('dragleave', () => uploadZone.classList.remove('drag-over'));
+uploadZone.addEventListener('drop', e => {
+  e.preventDefault();
+  uploadZone.classList.remove('drag-over');
+  const dt = e.dataTransfer;
+  if (dt.files.length) { photoInput.files = dt.files; photoInput.dispatchEvent(new Event('change')); }
+});
+
+// Retake
+retakeBtn.addEventListener('click', () => {
+  photoInput.value = '';
+  compressedBlob = null;
+  previewWrap.style.display = 'none';
+  submitBtn.style.display = 'none';
+  retakeBtn.style.display = 'none';
+  clearError();
+  resultCard.style.display = 'none';
+});
+
+// New photo (from result card)
+newPhotoBtn.addEventListener('click', () => {
+  resultCard.style.display = 'none';
+  photoInput.value = '';
+  compressedBlob = null;
+  previewWrap.style.display = 'none';
+  submitBtn.style.display = 'none';
+  retakeBtn.style.display = 'none';
+  clearError();
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+});
+
+// ──────────────────────────────────────────────
+// Submit
+// ──────────────────────────────────────────────
+submitBtn.addEventListener('click', async () => {
+  if (!compressedBlob) return;
+  submitBtn.disabled = true;
+  retakeBtn.disabled = true;
+  setStatus('Analysing rings…');
+
+  const fd = new FormData();
+  fd.append('photo', compressedBlob, 'photo.jpg');
+
+  try {
+    const res = await fetch('/count', { method: 'POST', body: fd });
+    const raw = await res.text();
+
+    let data;
+    try { data = JSON.parse(raw); }
+    catch {
+      showError('Server returned an unexpected response. Try again.');
+      submitBtn.disabled = false; retakeBtn.disabled = false;
       return;
     }
-    document.getElementById('resultImg').src = data.image_url + '?t=' + Date.now();
-    document.getElementById('ringCount').textContent = data.ring_count;
-    const confEl = document.getElementById('confidenceText');
-    confEl.textContent = 'Confidence: ' + data.confidence;
-    confEl.className = 'confidence conf-' + data.confidence;
-    document.getElementById('metricsText').textContent =
-      `Gap consistency: ${data.consistency} | Blur: ${data.blur_score} | ` +
-      `Brightness: ${data.brightness} | Glare: ${data.glare}%`;
-    resultCard.style.display = 'block';
-    status.textContent = '';
+
+    if (data.error) {
+      showError(data.error);
+      submitBtn.disabled = false; retakeBtn.disabled = false;
+      return;
+    }
+
+    renderResult(data);
+
   } catch (err) {
-    status.textContent = 'Error: ' + err.message;
+    showError('Network error: ' + err.message);
   }
+
   submitBtn.disabled = false;
+  retakeBtn.disabled = false;
 });
+
+// ──────────────────────────────────────────────
+// Render result
+// ──────────────────────────────────────────────
+function renderResult(d) {
+  hideStatus();
+
+  document.getElementById('resultImg').src = d.image_data_url;
+  document.getElementById('ringCount').textContent = d.ring_count;
+
+  const pill = document.getElementById('confPill');
+  pill.textContent = d.confidence + ' confidence';
+  pill.className = 'conf-pill conf-' + d.confidence;
+
+  // Metrics
+  const consistencyPct = Math.round(d.consistency * 100);
+  document.getElementById('m-consistency').textContent = consistencyPct + '%';
+  document.getElementById('bar-consistency').style.width = consistencyPct + '%';
+
+  const blurPct = Math.min(100, Math.round(d.blur_score / 3));
+  document.getElementById('m-blur').textContent = d.blur_score;
+  document.getElementById('bar-blur').style.width = blurPct + '%';
+
+  const brightPct = Math.round(d.brightness / 255 * 100);
+  document.getElementById('m-brightness').textContent = d.brightness;
+  document.getElementById('bar-brightness').style.width = brightPct + '%';
+
+  document.getElementById('m-glare').textContent = d.glare + '%';
+  document.getElementById('bar-glare').style.width = Math.min(100, d.glare) + '%';
+
+  // Tips
+  const tips = [];
+  if (d.blur_score < 80) tips.push('Image is blurry — hold the camera steady or move closer');
+  if (d.glare > 20) tips.push('High glare detected — avoid direct light on the rings');
+  if (d.brightness < 40) tips.push('Image too dark — improve lighting');
+  if (d.brightness > 220) tips.push('Image overexposed — reduce lighting or move the rings');
+  if (!d.box_reliable) tips.push('Ring stack hard to isolate — use a plain contrasting background');
+  if (d.consistency < 0.5) tips.push('Ring spacing irregular — ensure rings are evenly stacked');
+
+  const tipsBox  = document.getElementById('tips-box');
+  const tipsList = document.getElementById('tips-list');
+  if (tips.length) {
+    tipsList.innerHTML = tips.map(t => `<li>${t}</li>`).join('');
+    tipsBox.style.display = 'block';
+  } else {
+    tipsBox.style.display = 'none';
+  }
+
+  resultCard.style.display = 'block';
+  resultCard.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
 </script>
 </body>
 </html>
