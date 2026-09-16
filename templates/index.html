@@ -257,12 +257,17 @@ function humanSize(bytes){
 
 function selectFile(file){
   if (!file) return;
+
   selectedFile = file;
+
   previewImg.src = URL.createObjectURL(file);
+
   fileMeta.textContent = file.name || 'photo.jpg';
   fileSizeChip.textContent = humanSize(file.size);
+
   previewWrap.classList.add('show');
   actionRow.style.display = 'flex';
+
   errorBox.classList.remove('show');
   statusLine.classList.remove('show');
 }
@@ -289,52 +294,178 @@ retryBtn.addEventListener('click', () => {
   cameraInput.value = '';
   fileInput.value = '';
 });
+async function compressImage(file) {
+  return new Promise((resolve, reject) => {
 
+    const img = new Image();
+
+    img.onload = () => {
+
+      const MAX_WIDTH = 1200;
+
+      let width = img.width;
+      let height = img.height;
+
+      if (width > MAX_WIDTH) {
+        height = Math.round(height * MAX_WIDTH / width);
+        width = MAX_WIDTH;
+      }
+
+      const canvas = document.createElement('canvas');
+
+      canvas.width = width;
+      canvas.height = height;
+
+      const ctx = canvas.getContext('2d');
+
+      ctx.drawImage(
+        img,
+        0,
+        0,
+        width,
+        height
+      );
+
+      canvas.toBlob(
+        blob => {
+
+          if (!blob) {
+            reject(new Error('Image compression failed'));
+            return;
+          }
+
+          resolve(blob);
+
+        },
+        'image/jpeg',
+        0.75
+      );
+    };
+
+    img.onerror = () => {
+      reject(new Error('Unable to read image'));
+    };
+
+    img.src = URL.createObjectURL(file);
+  });
+}
 analyzeBtn.addEventListener('click', async () => {
   if (!selectedFile) return;
+
   analyzeBtn.disabled = true;
-  statusText.textContent = 'Uploading & analyzing…';
+  statusText.textContent = 'Compressing image…';
   statusLine.classList.add('show');
   errorBox.classList.remove('show');
 
-  const formData = new FormData();
-  formData.append('photo', selectedFile);
-
   try {
-    const res = await fetch('/count', { method: 'POST', body: formData });
-    const data = await res.json();
+
+    // Compress mobile photo before uploading
+    const compressedBlob = await compressImage(selectedFile);
+
+    console.log(
+      'Original size:',
+      humanSize(selectedFile.size)
+    );
+
+    console.log(
+      'Compressed size:',
+      humanSize(compressedBlob.size)
+    );
+
+    // Safety limit
+    if (compressedBlob.size > 4 * 1024 * 1024) {
+      throw new Error(
+        'Image is still too large. Please retake the photo.'
+      );
+    }
+
+    statusText.textContent = 'Uploading & analyzing…';
+
+    const formData = new FormData();
+
+    formData.append(
+      'photo',
+      compressedBlob,
+      'ring_photo.jpg'
+    );
+
+    const res = await fetch('/count', {
+      method: 'POST',
+      body: formData
+    });
+
+    const raw = await res.text();
+
+    let data;
+
+    try {
+      data = JSON.parse(raw);
+    } catch (e) {
+      throw new Error(
+        'Server returned an invalid response: ' +
+        raw.substring(0, 150)
+      );
+    }
 
     if (!res.ok || data.error) {
-      errorBox.textContent = '⚠️ ' + (data.error || 'Something went wrong.');
+      errorBox.textContent =
+        '⚠️ ' + (data.error || 'Something went wrong.');
+
       errorBox.classList.add('show');
       statusLine.classList.remove('show');
+
       analyzeBtn.disabled = false;
       return;
     }
 
-    document.getElementById('resultImg').src = data.image_data_url;
-    document.getElementById('ringCount').textContent = data.ring_count;
+    document.getElementById('resultImg').src =
+      data.image_data_url;
 
-    const badge = document.getElementById('confBadge');
-    badge.textContent = data.confidence;
-    badge.className = 'conf-badge conf-' + data.confidence;
+    document.getElementById('ringCount').textContent =
+      data.ring_count;
 
-    document.getElementById('mConsistency').textContent = data.consistency;
-    document.getElementById('mBlur').textContent = data.blur_score;
-    document.getElementById('mBrightness').textContent = data.brightness;
-    document.getElementById('mGlare').textContent = data.glare + '%';
+    const badge =
+      document.getElementById('confBadge');
+
+    badge.textContent =
+      data.confidence;
+
+    badge.className =
+      'conf-badge conf-' + data.confidence;
+
+    document.getElementById('mConsistency').textContent =
+      data.consistency;
+
+    document.getElementById('mBlur').textContent =
+      data.blur_score;
+
+    document.getElementById('mBrightness').textContent =
+      data.brightness;
+
+    document.getElementById('mGlare').textContent =
+      data.glare + '%';
 
     document.getElementById('lowWarning').style.display =
-      data.confidence === 'Low' ? 'block' : 'none';
+      data.confidence === 'Low'
+        ? 'block'
+        : 'none';
 
     emptyState.style.display = 'none';
+
     resultCard.classList.add('show');
+
     statusLine.classList.remove('show');
+
   } catch (err) {
-    errorBox.textContent = '⚠️ Network error: ' + err.message;
+
+    errorBox.textContent =
+      '⚠️ ' + err.message;
+
     errorBox.classList.add('show');
+
     statusLine.classList.remove('show');
   }
+
   analyzeBtn.disabled = false;
 });
 </script>
