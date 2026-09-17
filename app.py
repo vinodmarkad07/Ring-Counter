@@ -40,7 +40,6 @@ from flask import Flask
 app = Flask(__name__)
 import cv2
 import numpy as np
-from scipy.signal import find_peaks
 
 try:
     from ultralytics import YOLO
@@ -256,7 +255,58 @@ def local_contrast_normalize(signal: np.ndarray, window: int) -> np.ndarray:
     local_std = np.sqrt(np.maximum(local_sq_mean - local_mean ** 2, 1e-6))
     return (signal - local_mean) / local_std
 
+def find_peaks(signal, prominence=0.0, distance=1):
+    signal = np.asarray(signal, dtype=float)
 
+    if signal.size < 3:
+        return np.array([], dtype=int), {}
+
+    # Local maxima
+    candidates = np.where(
+        (signal[1:-1] > signal[:-2]) &
+        (signal[1:-1] >= signal[2:])
+    )[0] + 1
+
+    if len(candidates) == 0:
+        return np.array([], dtype=int), {}
+
+    # Calculate simple prominence using neighboring minimum values
+    prominences = np.zeros(len(candidates), dtype=float)
+
+    for i, p in enumerate(candidates):
+        left_start = max(0, p - max(distance * 3, 10))
+        right_end = min(len(signal), p + max(distance * 3, 10) + 1)
+
+        left_min = np.min(signal[left_start:p]) if p > left_start else signal[p]
+        right_min = np.min(signal[p + 1:right_end]) if p + 1 < right_end else signal[p]
+
+        prominences[i] = signal[p] - max(left_min, right_min)
+
+    # Prominence filtering
+    keep = prominences >= prominence
+    candidates = candidates[keep]
+    prominences = prominences[keep]
+
+    if len(candidates) == 0:
+        return np.array([], dtype=int), {}
+
+    # Distance filtering: keep stronger peaks first
+    order = np.argsort(prominences)[::-1]
+    selected = []
+
+    for idx in order:
+        p = candidates[idx]
+
+        if all(abs(p - q) >= distance for q in selected):
+            selected.append(int(p))
+
+    selected.sort()
+
+    return np.array(selected, dtype=int), {
+        "prominences": np.array(
+            [prominences[np.where(candidates == p)[0][0]] for p in selected]
+        )
+    }
 def get_peaks_from_profile(profile, n_rows):
     normalized = local_contrast_normalize(profile, Config.LOCAL_NORM_WINDOW)
     gradient = np.abs(np.gradient(normalized))
