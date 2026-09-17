@@ -2,472 +2,586 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<title>RingCount AI — Ring Stack Counter</title>
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>RingCount AI v3</title>
 <style>
-  :root{
-    --bg:#0b0d12; --panel:#141821; --panel2:#1b2029; --border:#262c38;
-    --text:#eef1f6; --muted:#8b93a5; --accent:#3b82f6; --accent2:#8b5cf6;
-    --good:#22c55e; --warn:#eab308; --bad:#ef4444;
-  }
-  *{box-sizing:border-box;}
-  body{
-    margin:0; background:var(--bg); color:var(--text);
-    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;
-    min-height:100vh;
-  }
-  header{
-    padding:18px 20px; display:flex; align-items:center; gap:10px;
-    border-bottom:1px solid var(--border);
-    background:linear-gradient(180deg,#11141b,#0b0d12);
-  }
-  header .logo{font-size:22px;}
-  header h1{font-size:17px; margin:0; font-weight:700;}
-  header .tag{font-size:11px; color:var(--muted); margin-left:auto; text-align:right;}
+:root{
+  --bg:#080c12;--bg2:#0d1117;--surf:#13181f;--surf2:#1a2030;--surf3:#1f2736;
+  --bdr:#2a3244;--bdr2:#3a4560;
+  --txt:#e8eef8;--txt2:#a0aec0;--txt3:#64748b;
+  --blue:#3b82f6;--blue2:#60a5fa;--blue-g:rgba(59,130,246,.22);
+  --purple:#8b5cf6;--green:#10b981;--green2:#34d399;
+  --yellow:#f59e0b;--red:#ef4444;--orange:#f97316;
+  --r:14px;--r2:20px;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html{height:100%;scroll-behavior:smooth}
+body{min-height:100%;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;
+  background:var(--bg);color:var(--txt);-webkit-font-smoothing:antialiased}
+.bg-glow{position:fixed;inset:0;pointer-events:none;z-index:0;
+  background:radial-gradient(ellipse 60% 40% at 20% 10%,rgba(59,130,246,.07) 0%,transparent 70%),
+             radial-gradient(ellipse 40% 30% at 80% 80%,rgba(139,92,246,.06) 0%,transparent 70%)}
+.page{position:relative;z-index:1;min-height:100vh;display:flex;flex-direction:column;
+  align-items:center;padding:0 16px 60px}
 
-  main{
-    max-width:1100px; margin:0 auto; padding:20px;
-    display:grid; grid-template-columns:1fr; gap:20px;
-  }
-  @media (min-width:860px){
-    main{grid-template-columns: 1fr 1fr; align-items:start;}
-  }
-  /* Landscape phones: force 2-col layout even under 860px width so both
-     panels are visible without excess vertical scrolling. */
-  @media (max-width:859px) and (orientation:landscape){
-    main{grid-template-columns: 1fr 1fr;}
-  }
+/* NAV */
+.topnav{width:100%;max-width:580px;display:flex;align-items:center;
+  justify-content:space-between;padding:18px 0 0;margin-bottom:28px}
+.brand{display:flex;align-items:center;gap:10px}
+.brand-icon{width:36px;height:36px;background:linear-gradient(135deg,var(--blue),var(--purple));
+  border-radius:10px;display:flex;align-items:center;justify-content:center;
+  font-size:18px;box-shadow:0 0 24px rgba(59,130,246,.3)}
+.brand-name{font-size:17px;font-weight:800;letter-spacing:-.5px;
+  background:linear-gradient(90deg,var(--blue2),var(--purple));
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent}
+.vtag{font-size:10px;font-weight:700;color:var(--green2);background:rgba(16,185,129,.12);
+  border:1px solid var(--green);padding:2px 8px;border-radius:20px;letter-spacing:.5px}
 
-  .card{
-    background:var(--panel); border:1px solid var(--border);
-    border-radius:16px; padding:18px;
-  }
-  .card h2{
-    font-size:13px; text-transform:uppercase; letter-spacing:.06em;
-    color:var(--muted); margin:0 0 14px 0; display:flex; align-items:center; gap:6px;
-  }
+/* HERO */
+.hero{text-align:center;margin-bottom:24px;width:100%;max-width:580px}
+.hero h1{font-size:clamp(20px,5.5vw,28px);font-weight:800;letter-spacing:-.7px}
+.hero h1 span{background:linear-gradient(90deg,var(--blue2),var(--green2));
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent}
+.hero p{color:var(--text2,#a0aec0);font-size:13px;margin-top:6px;line-height:1.6}
+.pills{display:flex;gap:10px;justify-content:center;margin-top:12px;flex-wrap:wrap}
+.pill{background:var(--surf);border:1px solid var(--bdr);border-radius:20px;
+  padding:4px 12px;font-size:11px;color:var(--txt2);display:flex;align-items:center;gap:4px}
+.pill b{color:var(--blue2)}
 
-  .capture-buttons{ display:grid; grid-template-columns:1fr 1fr; gap:10px; }
-  .cap-btn{
-    display:flex; flex-direction:column; align-items:center; justify-content:center;
-    gap:6px; padding:18px 10px; border-radius:12px; border:1px solid var(--border);
-    cursor:pointer; font-weight:600; font-size:14px; color:var(--text);
-    background:var(--panel2); transition:transform .1s ease, border-color .15s ease;
-  }
-  .cap-btn:active{ transform:scale(0.97); }
-  .cap-btn.primary{ background:linear-gradient(135deg,var(--accent),#2563eb); border-color:transparent; }
-  .cap-btn.secondary{ background:linear-gradient(135deg,var(--accent2),#7c3aed); border-color:transparent; }
-  .cap-btn .icon{ font-size:26px; }
-  .cap-btn .sub{ font-size:11px; font-weight:400; opacity:.85; }
+/* CARD */
+.card{width:100%;max-width:580px;background:var(--surf);border:1px solid var(--bdr);
+  border-radius:var(--r2);padding:20px;margin-bottom:14px;
+  box-shadow:0 4px 24px rgba(0,0,0,.5)}
+.card-title{font-size:11px;font-weight:700;color:var(--txt3);text-transform:uppercase;
+  letter-spacing:.8px;margin-bottom:14px;display:flex;align-items:center;gap:7px}
+.card-title::before{content:'';width:3px;height:13px;
+  background:linear-gradient(180deg,var(--blue),var(--purple));border-radius:2px}
 
-  .dropzone{
-    margin-top:12px; border:2px dashed var(--border); border-radius:12px;
-    padding:16px; text-align:center; color:var(--muted); font-size:13px;
-    transition:border-color .15s ease, background .15s ease;
-  }
-  .dropzone.drag{ border-color:var(--accent); background:rgba(59,130,246,.08); color:var(--text); }
+/* CAPTURE BUTTONS */
+.capture-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.cbtn{position:relative;border:none;border-radius:var(--r);padding:20px 12px;
+  cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:7px;
+  transition:transform .15s,box-shadow .15s;overflow:hidden}
+.cbtn:active{transform:scale(.97)}
+.cbtn input[type=file]{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%}
+.cbtn .ic{font-size:32px;filter:drop-shadow(0 2px 8px rgba(0,0,0,.4))}
+.cbtn .lb{font-size:14px;font-weight:700;color:#fff}
+.cbtn .sb{font-size:11px;color:rgba(255,255,255,.75)}
+.cbtn.take{background:linear-gradient(135deg,#1d4ed8,#3b82f6);
+  box-shadow:0 4px 20px rgba(59,130,246,.35)}
+.cbtn.take:hover{box-shadow:0 6px 28px rgba(59,130,246,.5)}
+.cbtn.choose{background:linear-gradient(135deg,#5b21b6,#8b5cf6);
+  box-shadow:0 4px 20px rgba(139,92,246,.35)}
+.cbtn.choose:hover{box-shadow:0 6px 28px rgba(139,92,246,.5)}
 
-  input[type=file]{ display:none; }
+/* DRAG ZONE */
+.drag-zone{margin-top:12px;border:2px dashed var(--bdr2);border-radius:var(--r);
+  padding:14px;text-align:center;color:var(--txt3);font-size:12px;
+  transition:border-color .2s,background .2s}
+.drag-zone.over{border-color:var(--blue);background:var(--blue-g);color:var(--blue2)}
 
-  .preview-wrap{ margin-top:14px; display:none; }
-  .preview-wrap.show{ display:block; }
-  .preview-wrap img{ width:100%; border-radius:12px; display:block; max-height:340px; object-fit:contain; background:#000; }
-  .preview-meta{ display:flex; justify-content:space-between; align-items:center; margin-top:8px; font-size:12px; color:var(--muted); }
-  .chip{ background:var(--panel2); border:1px solid var(--border); border-radius:999px; padding:3px 10px; font-size:11px; }
+/* PREVIEW */
+#prev-sec{display:none}
+.prev-hdr{display:flex;align-items:center;justify-content:space-between;
+  margin:14px 0 8px}
+.prev-hdr span{font-size:13px;font-weight:600;color:var(--txt2)}
+.tag{font-size:11px;font-weight:700;padding:3px 10px;border-radius:20px;
+  background:var(--surf2);border:1px solid var(--bdr);color:var(--txt2)}
+.tag.g{background:rgba(16,185,129,.12);border-color:var(--green);color:var(--green2)}
+.img-wrap{border-radius:var(--r);overflow:hidden;border:1px solid var(--bdr);position:relative}
+.img-wrap img{width:100%;display:block;max-height:320px;object-fit:contain;background:#000}
+.src-badge{position:absolute;top:8px;left:8px;background:rgba(0,0,0,.7);
+  backdrop-filter:blur(6px);color:#fff;font-size:11px;font-weight:600;
+  padding:4px 10px;border-radius:20px}
 
-  .action-row{ display:flex; gap:10px; margin-top:14px; }
-  .btn{
-    flex:1; padding:13px; border-radius:10px; border:none; cursor:pointer;
-    font-weight:700; font-size:14px; display:flex; align-items:center; justify-content:center; gap:8px;
-  }
-  .btn-analyze{ background:linear-gradient(135deg,var(--good),#16a34a); color:#04250f; }
-  .btn-analyze:disabled{ opacity:.5; cursor:not-allowed; }
-  .btn-retry{ background:var(--panel2); color:var(--text); border:1px solid var(--border); flex:none; padding:13px 16px; }
+/* BUTTONS */
+.act-row{display:grid;grid-template-columns:1fr auto;gap:10px;margin-top:12px}
+.btn{border:none;border-radius:10px;font-size:15px;font-weight:700;cursor:pointer;
+  padding:14px 20px;transition:transform .12s,filter .12s,opacity .2s;
+  display:flex;align-items:center;justify-content:center;gap:7px}
+.btn:active{transform:scale(.97)}
+.btn:disabled{opacity:.4;cursor:not-allowed;transform:none}
+.btn-count{background:linear-gradient(90deg,var(--green),#059669);color:#fff;
+  box-shadow:0 4px 16px rgba(16,185,129,.3)}
+.btn-count:hover:not(:disabled){filter:brightness(1.1)}
+.btn-retry{background:var(--surf2);border:1px solid var(--bdr);color:var(--txt2);
+  font-size:13px;padding:14px 16px}
 
-  .status-line{
-    margin-top:12px; font-size:13px; color:var(--muted); display:none;
-    align-items:center; gap:8px;
-  }
-  .status-line.show{ display:flex; }
-  .spinner{
-    width:14px; height:14px; border-radius:50%;
-    border:2px solid var(--border); border-top-color:var(--accent);
-    animation:spin 0.8s linear infinite;
-  }
-  @keyframes spin{ to{ transform:rotate(360deg); } }
+/* STATUS & ERROR */
+.status-bar{display:none;align-items:center;gap:10px;background:var(--surf2);
+  border:1px solid var(--bdr);border-radius:10px;padding:11px 14px;
+  margin-top:12px;font-size:13px;color:var(--txt2)}
+.status-bar.show{display:flex}
+.spinner{width:15px;height:15px;border:2px solid var(--bdr2);
+  border-top-color:var(--blue);border-radius:50%;
+  animation:spin .7s linear infinite;flex-shrink:0}
+@keyframes spin{to{transform:rotate(360deg)}}
+.prog-track{flex:1;height:3px;background:var(--bdr);border-radius:2px;overflow:hidden}
+.prog-fill{height:100%;width:0%;border-radius:2px;
+  background:linear-gradient(90deg,var(--blue),var(--green));transition:width .4s ease}
+.err-bar{display:none;background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.35);
+  border-radius:10px;padding:11px 14px;margin-top:12px;font-size:13px;color:var(--red)}
+.err-bar.show{display:block}
 
-  .error-box{
-    display:none; margin-top:12px; background:rgba(239,68,68,.1);
-    border:1px solid rgba(239,68,68,.35); color:#fca5a5;
-    padding:12px 14px; border-radius:10px; font-size:13px; line-height:1.5;
-  }
-  .error-box.show{ display:block; }
+/* RESULT */
+#result-card{display:none}
 
-  /* Result panel */
-  #resultCard{ display:none; }
-  #resultCard.show{ display:block; }
-  #resultImg{ width:100%; border-radius:12px; display:block; background:#000; }
+/* TABS */
+.tabs{display:flex;gap:2px;background:var(--surf2);border-radius:10px;
+  padding:3px;margin-bottom:12px}
+.tab-btn{flex:1;border:none;background:transparent;color:var(--txt2);
+  padding:9px 12px;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;
+  transition:background .2s,color .2s}
+.tab-btn.active{background:var(--surf3);color:var(--txt);
+  box-shadow:0 1px 4px rgba(0,0,0,.4)}
 
-  .result-top{ display:flex; align-items:flex-end; justify-content:space-between; margin:16px 0 4px; }
-  .count-display{ font-size:52px; font-weight:800; line-height:1; color:var(--good); }
-  .count-label{ font-size:12px; color:var(--muted); text-transform:uppercase; letter-spacing:.05em; margin-top:4px;}
-  .conf-badge{
-    padding:6px 14px; border-radius:999px; font-size:12px; font-weight:700;
-    text-transform:uppercase; letter-spacing:.04em;
-  }
-  .conf-High{ background:rgba(34,197,94,.15); color:var(--good); border:1px solid rgba(34,197,94,.4); }
-  .conf-Medium{ background:rgba(234,179,8,.15); color:var(--warn); border:1px solid rgba(234,179,8,.4); }
-  .conf-Low{ background:rgba(239,68,68,.15); color:var(--bad); border:1px solid rgba(239,68,68,.4); }
+/* RESULT IMAGE */
+.res-img-wrap{border-radius:var(--r);overflow:hidden;border:1px solid var(--bdr);position:relative}
+.res-img-wrap img{width:100%;display:block}
+.res-overlay{position:absolute;bottom:0;left:0;right:0;
+  background:linear-gradient(transparent,rgba(0,0,0,.85));
+  padding:32px 16px 14px;display:flex;align-items:flex-end;justify-content:space-between}
+.cnt-wrap{display:flex;align-items:baseline;gap:6px}
+.cnt-num{font-size:64px;font-weight:900;line-height:1;color:#00ffcc;
+  text-shadow:0 0 20px rgba(0,255,200,.6),0 2px 8px rgba(0,0,0,.8);
+  font-variant-numeric:tabular-nums}
+.cnt-lbl{font-size:16px;font-weight:600;color:rgba(255,255,255,.7);padding-bottom:8px}
+.conf-badge{padding:5px 14px;border-radius:20px;font-size:12px;font-weight:800;
+  letter-spacing:.6px;text-transform:uppercase}
+.conf-High{background:rgba(16,185,129,.25);color:var(--green2);border:1px solid var(--green)}
+.conf-Medium{background:rgba(245,158,11,.2);color:#fbbf24;border:1px solid var(--yellow)}
+.conf-Low{background:rgba(239,68,68,.2);color:#f87171;border:1px solid var(--red)}
 
-  .metrics-grid{
-    display:grid; grid-template-columns:repeat(4,1fr); gap:8px; margin-top:16px;
-  }
-  .metric{
-    background:var(--panel2); border:1px solid var(--border); border-radius:10px;
-    padding:10px 8px; text-align:center;
-  }
-  .metric .v{ font-size:16px; font-weight:700; }
-  .metric .l{ font-size:10px; color:var(--muted); text-transform:uppercase; margin-top:2px; }
+/* LEGEND */
+.legend{display:flex;gap:16px;flex-wrap:wrap;font-size:11px;color:var(--txt3);
+  margin-top:10px;padding:0 2px}
+.leg-item{display:flex;align-items:center;gap:5px}
+.leg-dot{width:14px;height:4px;border-radius:2px}
+.ld-g{background:var(--green)}
+.ld-b{background:var(--blue)}
+.ld-o{background:var(--orange)}
 
-  .low-warning{
-    margin-top:14px; padding:10px 12px; border-radius:10px; font-size:12px;
-    background:rgba(239,68,68,.08); border:1px solid rgba(239,68,68,.3); color:#fca5a5;
-  }
+/* METRICS */
+.metrics{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:14px}
+.mbox{background:var(--surf2);border:1px solid var(--bdr);border-radius:10px;padding:12px 14px}
+.m-lbl{font-size:10px;font-weight:700;color:var(--txt3);text-transform:uppercase;letter-spacing:.6px}
+.m-val{font-size:22px;font-weight:800;margin-top:2px}
+.m-bar{height:3px;background:var(--bdr);border-radius:2px;margin-top:8px;overflow:hidden}
+.m-bar-fill{height:100%;border-radius:2px;transition:width .8s cubic-bezier(.4,0,.2,1)}
 
-  .empty-state{
-    display:flex; flex-direction:column; align-items:center; justify-content:center;
-    color:var(--muted); padding:50px 20px; text-align:center; font-size:13px; gap:8px;
-  }
-  .empty-state .icon{ font-size:40px; opacity:.5; }
+/* TIPS */
+.tips-card{display:none;margin-top:12px;background:rgba(59,130,246,.07);
+  border:1px solid rgba(59,130,246,.22);border-radius:10px;padding:14px 16px}
+.tips-card.show{display:block}
+.tips-title{font-size:11px;font-weight:800;color:var(--blue2);text-transform:uppercase;
+  letter-spacing:.6px;margin-bottom:8px}
+.tips-list{list-style:none}
+.tips-list li{font-size:12px;color:var(--txt2);padding:3px 0;
+  display:flex;align-items:flex-start;gap:6px}
+.tips-list li::before{content:"→";color:var(--blue);flex-shrink:0}
 
-  .legend{ display:flex; gap:14px; margin-top:12px; flex-wrap:wrap; font-size:11px; color:var(--muted); }
-  .legend span{ display:inline-flex; align-items:center; gap:5px; }
-  .swatch{ width:10px; height:10px; border-radius:2px; display:inline-block; }
+/* RESULT ACTIONS */
+.res-actions{display:flex;gap:10px;margin-top:14px;flex-wrap:wrap}
+.res-actions .btn{flex:1;min-width:130px}
+.btn-dl{background:var(--surf2);border:1px solid var(--bdr2);color:var(--txt2);
+  border-radius:10px;padding:11px 18px;font-size:13px;font-weight:600;cursor:pointer;
+  display:inline-flex;align-items:center;gap:6px;transition:border-color .2s,color .2s}
+.btn-dl:hover{border-color:var(--blue);color:var(--blue2)}
 
-  footer{ text-align:center; color:var(--muted); font-size:11px; padding:24px 20px 30px; }
+/* HISTORY */
+#hist-card{display:none}
+.hist-list{display:flex;gap:10px;overflow-x:auto;padding-bottom:4px}
+.hist-item{flex-shrink:0;background:var(--surf2);border:1px solid var(--bdr);
+  border-radius:10px;padding:10px 14px;min-width:100px;text-align:center}
+.hi-cnt{font-size:28px;font-weight:900;color:var(--green2)}
+.hi-conf{font-size:10px;color:var(--txt3);margin-top:2px}
+.hi-time{font-size:10px;color:var(--txt3)}
+
+/* FOOTER */
+.footer{margin-top:40px;text-align:center;font-size:11px;color:var(--txt3);line-height:2}
+
+@media(max-width:400px){
+  .capture-grid{grid-template-columns:1fr}
+  .cnt-num{font-size:50px}
+}
 </style>
 </head>
 <body>
+<div class="bg-glow"></div>
+<div class="page">
 
-<header>
-  <div class="logo">🔵</div>
-  <h1>RingCount AI</h1>
-  <div class="tag">OpenCV + Python<br>Automatic stack detection</div>
-</header>
-
-<main>
-  <!-- LEFT: capture / upload -->
-  <div class="card" id="captureCard">
-    <h2>📷 New Photo</h2>
-    <div class="capture-buttons">
-      <label class="cap-btn primary" for="cameraInput">
-        <span class="icon">📷</span>
-        Take Photo
-        <span class="sub">Open camera</span>
-      </label>
-      <label class="cap-btn secondary" for="fileInput">
-        <span class="icon">🖼️</span>
-        Choose Photo
-        <span class="sub">From gallery / files</span>
-      </label>
+  <!-- NAV -->
+  <nav class="topnav">
+    <div class="brand">
+      <div class="brand-icon">⭕</div>
+      <span class="brand-name">RingCount AI</span>
     </div>
-    <input type="file" id="cameraInput" accept="image/*" capture="environment">
-    <input type="file" id="fileInput" accept="image/*">
+    <span class="vtag">v3.0</span>
+  </nav>
 
-    <div class="dropzone" id="dropzone">📥 or drag &amp; drop an image here</div>
-
-    <div class="preview-wrap" id="previewWrap">
-      <img id="previewImg" alt="Selected photo preview">
-      <div class="preview-meta">
-        <span id="fileMeta">—</span>
-        <span class="chip" id="fileSizeChip">—</span>
-      </div>
-    </div>
-
-    <div class="action-row" id="actionRow" style="display:none;">
-      <button class="btn btn-analyze" id="analyzeBtn">⚡ Analyze Rings</button>
-      <button class="btn btn-retry" id="retryBtn">↺ Retake</button>
-    </div>
-
-    <div class="status-line" id="statusLine"><span class="spinner"></span><span id="statusText">Processing…</span></div>
-    <div class="error-box" id="errorBox"></div>
-
-    <div class="legend">
-      <span><span class="swatch" style="background:#ffa500;"></span>Detected stack</span>
-      <span><span class="swatch" style="background:#5000ff;"></span>Analysis column</span>
-      <span><span class="swatch" style="background:#00ff50;"></span>Ring boundary</span>
+  <!-- HERO -->
+  <div class="hero">
+    <h1>Count Rings <span>Accurately</span></h1>
+    <p>Smart auto-crop · Multi-strip voting · Glare suppression</p>
+    <div class="pills">
+      <div class="pill">📷 <b>Live camera</b></div>
+      <div class="pill">🖼️ <b>Gallery</b></div>
+      <div class="pill">✂️ <b>Auto-crop</b></div>
+      <div class="pill">🗳️ <b>Vote detection</b></div>
     </div>
   </div>
 
-  <!-- RIGHT: result -->
-  <div class="card" id="resultCardOuter">
-    <h2>📊 Detection Result</h2>
-    <div class="empty-state" id="emptyState">
-      <div class="icon">🔍</div>
-      Take or choose a photo to count rings
+  <!-- UPLOAD CARD -->
+  <div class="card" id="upload-card">
+    <div class="card-title">Select Image Source</div>
+    <div class="capture-grid">
+      <button class="cbtn take">
+        <input type="file" id="cameraInput" accept="image/*" capture="environment">
+        <span class="ic">📷</span>
+        <span class="lb">Take Photo</span>
+        <span class="sb">Open camera live</span>
+      </button>
+      <button class="cbtn choose">
+        <input type="file" id="galleryInput" accept="image/*">
+        <span class="ic">🖼️</span>
+        <span class="lb">Choose Photo</span>
+        <span class="sb">From gallery / files</span>
+      </button>
     </div>
-    <div id="resultCard">
-      <img id="resultImg" alt="Annotated result">
-      <div class="result-top">
-        <div>
-          <div class="count-display" id="ringCount">0</div>
-          <div class="count-label">Rings detected</div>
+    <div class="drag-zone" id="drag-zone">🗂️ &nbsp;Or drag &amp; drop an image here</div>
+
+    <div id="prev-sec">
+      <div class="prev-hdr">
+        <span>Selected Image</span>
+        <span class="tag g" id="size-tag">—</span>
+      </div>
+      <div class="img-wrap">
+        <img id="preview" alt="Preview">
+        <div class="src-badge" id="src-badge">📷 Camera</div>
+      </div>
+      <div class="act-row">
+        <button class="btn btn-count" id="submitBtn">⚙️ &nbsp;Analyse Rings</button>
+        <button class="btn btn-retry" id="retakeBtn">🔄 Retry</button>
+      </div>
+    </div>
+
+    <div class="status-bar" id="status-bar">
+      <div class="spinner"></div>
+      <span id="status-text">Processing…</span>
+      <div class="prog-track"><div class="prog-fill" id="prog-fill"></div></div>
+    </div>
+    <div class="err-bar" id="err-bar"></div>
+  </div>
+
+  <!-- RESULT CARD -->
+  <div class="card" id="result-card">
+    <div class="card-title">Detection Result</div>
+
+    <!-- Tabs: Full image | Cropped stack -->
+    <div class="tabs">
+      <button class="tab-btn active" id="tab-full" onclick="switchTab('full')">
+        📐 Full Image
+      </button>
+      <button class="tab-btn" id="tab-crop" onclick="switchTab('crop')">
+        ✂️ Cropped Stack
+      </button>
+    </div>
+
+    <!-- Full image view -->
+    <div id="view-full">
+      <div class="res-img-wrap">
+        <img id="resultImg" alt="Result">
+        <div class="res-overlay">
+          <div class="cnt-wrap">
+            <div class="cnt-num" id="ringCount">—</div>
+            <div class="cnt-lbl">rings</div>
+          </div>
+          <div id="confBadge" class="conf-badge"></div>
         </div>
-        <div class="conf-badge" id="confBadge">—</div>
       </div>
-      <div class="metrics-grid">
-        <div class="metric"><div class="v" id="mConsistency">—</div><div class="l">Consistency</div></div>
-        <div class="metric"><div class="v" id="mBlur">—</div><div class="l">Sharpness</div></div>
-        <div class="metric"><div class="v" id="mBrightness">—</div><div class="l">Brightness</div></div>
-        <div class="metric"><div class="v" id="mGlare">—</div><div class="l">Glare</div></div>
-      </div>
-      <div class="low-warning" id="lowWarning" style="display:none;">
-        ⚠️ Low confidence — retake with the stack filling more of the frame and less background clutter behind it.
+      <div class="legend">
+        <div class="leg-item"><div class="leg-dot ld-g"></div>Stack boundary</div>
+        <div class="leg-item"><div class="leg-dot ld-g" style="background:#00ff80"></div>Ring lines</div>
       </div>
     </div>
-  </div>
-</main>
 
-<footer>RingCount AI · Powered by OpenCV + scipy · Works on desktop and mobile, portrait or landscape</footer>
+    <!-- Cropped stack view -->
+    <div id="view-crop" style="display:none">
+      <div class="res-img-wrap">
+        <img id="cropImg" alt="Cropped Stack">
+        <div class="res-overlay">
+          <div class="cnt-wrap">
+            <div class="cnt-num" id="ringCount2">—</div>
+            <div class="cnt-lbl">rings</div>
+          </div>
+          <div class="conf-badge conf-High" style="font-size:11px">AUTO-CROP</div>
+        </div>
+      </div>
+      <p style="font-size:11px;color:var(--txt3);margin-top:8px;text-align:center">
+        Tight crop of detected stack — verify ring lines match real rings
+      </p>
+    </div>
+
+    <!-- Metrics -->
+    <div class="metrics" style="margin-top:14px">
+      <div class="mbox">
+        <div class="m-lbl">Consistency</div>
+        <div class="m-val" id="m-con">—</div>
+        <div class="m-bar"><div class="m-bar-fill" id="b-con"
+          style="width:0%;background:var(--blue)"></div></div>
+      </div>
+      <div class="mbox">
+        <div class="m-lbl">Sharpness</div>
+        <div class="m-val" id="m-blur">—</div>
+        <div class="m-bar"><div class="m-bar-fill" id="b-blur"
+          style="width:0%;background:var(--green)"></div></div>
+      </div>
+      <div class="mbox">
+        <div class="m-lbl">Brightness</div>
+        <div class="m-val" id="m-bright">—</div>
+        <div class="m-bar"><div class="m-bar-fill" id="b-bright"
+          style="width:0%;background:var(--yellow)"></div></div>
+      </div>
+      <div class="mbox">
+        <div class="m-lbl">Glare</div>
+        <div class="m-val" id="m-glare">—</div>
+        <div class="m-bar"><div class="m-bar-fill" id="b-glare"
+          style="width:0%;background:var(--red)"></div></div>
+      </div>
+    </div>
+
+    <!-- Tips -->
+    <div class="tips-card" id="tips-card">
+      <div class="tips-title">💡 Tips to improve accuracy</div>
+      <ul class="tips-list" id="tips-list"></ul>
+    </div>
+
+    <!-- Actions -->
+    <div class="res-actions">
+      <button class="btn btn-count" id="newPhotoBtn"
+        style="background:linear-gradient(90deg,var(--blue),var(--purple))">
+        📷 New Photo
+      </button>
+      <button class="btn-dl" id="dlFullBtn">⬇️ Full</button>
+      <button class="btn-dl" id="dlCropBtn">⬇️ Crop</button>
+    </div>
+  </div>
+
+  <!-- HISTORY -->
+  <div class="card" id="hist-card">
+    <div class="card-title">📋 Recent Counts</div>
+    <div class="hist-list" id="hist-list"></div>
+  </div>
+
+  <div class="footer">RingCount AI v3 &nbsp;·&nbsp; OpenCV + Multi-strip Voting<br>
+    <span style="color:var(--txt3)">© 2026</span></div>
+</div>
 
 <script>
+// ── DOM ──
 const cameraInput = document.getElementById('cameraInput');
-const fileInput = document.getElementById('fileInput');
-const dropzone = document.getElementById('dropzone');
-const previewWrap = document.getElementById('previewWrap');
-const previewImg = document.getElementById('previewImg');
-const fileMeta = document.getElementById('fileMeta');
-const fileSizeChip = document.getElementById('fileSizeChip');
-const actionRow = document.getElementById('actionRow');
-const analyzeBtn = document.getElementById('analyzeBtn');
-const retryBtn = document.getElementById('retryBtn');
-const statusLine = document.getElementById('statusLine');
-const statusText = document.getElementById('statusText');
-const errorBox = document.getElementById('errorBox');
-const emptyState = document.getElementById('emptyState');
-const resultCard = document.getElementById('resultCard');
+const galleryInput= document.getElementById('galleryInput');
+const prevSec     = document.getElementById('prev-sec');
+const previewImg  = document.getElementById('preview');
+const sizeTag     = document.getElementById('size-tag');
+const srcBadge    = document.getElementById('src-badge');
+const submitBtn   = document.getElementById('submitBtn');
+const retakeBtn   = document.getElementById('retakeBtn');
+const statusBar   = document.getElementById('status-bar');
+const statusText  = document.getElementById('status-text');
+const progFill    = document.getElementById('prog-fill');
+const errBar      = document.getElementById('err-bar');
+const resultCard  = document.getElementById('result-card');
+const newPhotoBtn = document.getElementById('newPhotoBtn');
+const dragZone    = document.getElementById('drag-zone');
+const histCard    = document.getElementById('hist-card');
+const histList    = document.getElementById('hist-list');
 
-let selectedFile = null;
+let blob = null, fullUrl = null, cropUrl = null;
+const history = [];
 
-function humanSize(bytes){
-  if (bytes < 1024) return bytes + ' B';
-  if (bytes < 1024*1024) return (bytes/1024).toFixed(0) + ' KB';
-  return (bytes/1024/1024).toFixed(1) + ' MB';
-}
-
-function selectFile(file){
-  if (!file) return;
-
-  selectedFile = file;
-
-  previewImg.src = URL.createObjectURL(file);
-
-  fileMeta.textContent = file.name || 'photo.jpg';
-  fileSizeChip.textContent = humanSize(file.size);
-
-  previewWrap.classList.add('show');
-  actionRow.style.display = 'flex';
-
-  errorBox.classList.remove('show');
-  statusLine.classList.remove('show');
-}
-
-cameraInput.addEventListener('change', () => selectFile(cameraInput.files[0]));
-fileInput.addEventListener('change', () => selectFile(fileInput.files[0]));
-
-['dragenter','dragover'].forEach(evt =>
-  dropzone.addEventListener(evt, e => { e.preventDefault(); dropzone.classList.add('drag'); })
-);
-['dragleave','drop'].forEach(evt =>
-  dropzone.addEventListener(evt, e => { e.preventDefault(); dropzone.classList.remove('drag'); })
-);
-dropzone.addEventListener('drop', e => {
-  const file = e.dataTransfer.files[0];
-  if (file && file.type.startsWith('image/')) selectFile(file);
-});
-
-retryBtn.addEventListener('click', () => {
-  selectedFile = null;
-  previewWrap.classList.remove('show');
-  actionRow.style.display = 'none';
-  errorBox.classList.remove('show');
-  cameraInput.value = '';
-  fileInput.value = '';
-});
-async function compressImage(file) {
-  return new Promise((resolve, reject) => {
-
-    const img = new Image();
-
-    img.onload = () => {
-
-      const MAX_WIDTH = 1200;
-
-      let width = img.width;
-      let height = img.height;
-
-      if (width > MAX_WIDTH) {
-        height = Math.round(height * MAX_WIDTH / width);
-        width = MAX_WIDTH;
-      }
-
-      const canvas = document.createElement('canvas');
-
-      canvas.width = width;
-      canvas.height = height;
-
-      const ctx = canvas.getContext('2d');
-
-      ctx.drawImage(
-        img,
-        0,
-        0,
-        width,
-        height
-      );
-
-      canvas.toBlob(
-        blob => {
-
-          if (!blob) {
-            reject(new Error('Image compression failed'));
-            return;
-          }
-
-          resolve(blob);
-
-        },
-        'image/jpeg',
-        0.75
-      );
+// ── COMPRESS ──
+function compress(file, maxW=1200, q=0.82){
+  return new Promise((res,rej)=>{
+    const img=new Image();
+    img.onload=()=>{
+      let w=img.width,h=img.height;
+      if(w>maxW){h=Math.round(h*maxW/w);w=maxW;}
+      const c=document.createElement('canvas');
+      c.width=w;c.height=h;
+      c.getContext('2d').drawImage(img,0,0,w,h);
+      c.toBlob(b=>{
+        if(!b){rej(new Error('Compression failed'));return;}
+        if(b.size>3*1024*1024) c.toBlob(res,'image/jpeg',.6);
+        else res(b);
+      },'image/jpeg',q);
     };
-
-    img.onerror = () => {
-      reject(new Error('Unable to read image'));
-    };
-
-    img.src = URL.createObjectURL(file);
+    img.onerror=()=>rej(new Error('Load failed'));
+    img.src=URL.createObjectURL(file);
   });
 }
-analyzeBtn.addEventListener('click', async () => {
-  if (!selectedFile) return;
+function fmt(b){return b<1048576?`${(b/1024).toFixed(0)} KB`:`${(b/1048576).toFixed(1)} MB`}
 
-  analyzeBtn.disabled = true;
-  statusText.textContent = 'Compressing image…';
-  statusLine.classList.add('show');
-  errorBox.classList.remove('show');
+// ── STATUS / ERROR ──
+function setStatus(msg,pct=0){
+  statusText.textContent=msg;
+  progFill.style.width=pct+'%';
+  statusBar.classList.add('show');
+  errBar.classList.remove('show');
+}
+function hideStatus(){statusBar.classList.remove('show');progFill.style.width='0%'}
+function showError(msg){errBar.textContent='⚠ '+msg;errBar.classList.add('show');statusBar.classList.remove('show')}
+function clearErr(){errBar.classList.remove('show')}
 
-  try {
+// ── FILE HANDLE ──
+async function handleFile(file,src){
+  if(!file)return;
+  clearErr();resultCard.style.display='none';
+  setStatus('Compressing…',20);
+  try{ blob=await compress(file); }
+  catch(e){hideStatus();showError(e.message);return;}
+  previewImg.src=URL.createObjectURL(blob);
+  sizeTag.textContent=fmt(blob.size);
+  srcBadge.textContent=src==='camera'?'📷 Camera':'🖼️ Gallery';
+  prevSec.style.display='block';
+  hideStatus();
+}
 
-    // Compress mobile photo before uploading
-    const compressedBlob = await compressImage(selectedFile);
+cameraInput.addEventListener('change',()=>{ if(cameraInput.files[0]) handleFile(cameraInput.files[0],'camera'); });
+galleryInput.addEventListener('change',()=>{ if(galleryInput.files[0]) handleFile(galleryInput.files[0],'gallery'); });
 
-    console.log(
-      'Original size:',
-      humanSize(selectedFile.size)
-    );
-
-    console.log(
-      'Compressed size:',
-      humanSize(compressedBlob.size)
-    );
-
-    // Safety limit
-    if (compressedBlob.size > 4 * 1024 * 1024) {
-      throw new Error(
-        'Image is still too large. Please retake the photo.'
-      );
-    }
-
-    statusText.textContent = 'Uploading & analyzing…';
-
-    const formData = new FormData();
-
-    formData.append(
-      'photo',
-      compressedBlob,
-      'ring_photo.jpg'
-    );
-
-    const res = await fetch('/count', {
-      method: 'POST',
-      body: formData
-    });
-
-    const raw = await res.text();
-
-    let data;
-
-    try {
-      data = JSON.parse(raw);
-    } catch (e) {
-      throw new Error(
-        'Server returned an invalid response: ' +
-        raw.substring(0, 150)
-      );
-    }
-
-    if (!res.ok || data.error) {
-      errorBox.textContent =
-        '⚠️ ' + (data.error || 'Something went wrong.');
-
-      errorBox.classList.add('show');
-      statusLine.classList.remove('show');
-
-      analyzeBtn.disabled = false;
-      return;
-    }
-
-    document.getElementById('resultImg').src =
-      data.image_data_url;
-
-    document.getElementById('ringCount').textContent =
-      data.ring_count;
-
-    const badge =
-      document.getElementById('confBadge');
-
-    badge.textContent =
-      data.confidence;
-
-    badge.className =
-      'conf-badge conf-' + data.confidence;
-
-    document.getElementById('mConsistency').textContent =
-      data.consistency;
-
-    document.getElementById('mBlur').textContent =
-      data.blur_score;
-
-    document.getElementById('mBrightness').textContent =
-      data.brightness;
-
-    document.getElementById('mGlare').textContent =
-      data.glare + '%';
-
-    document.getElementById('lowWarning').style.display =
-      data.confidence === 'Low'
-        ? 'block'
-        : 'none';
-
-    emptyState.style.display = 'none';
-
-    resultCard.classList.add('show');
-
-    statusLine.classList.remove('show');
-
-  } catch (err) {
-
-    errorBox.textContent =
-      '⚠️ ' + err.message;
-
-    errorBox.classList.add('show');
-
-    statusLine.classList.remove('show');
-  }
-
-  analyzeBtn.disabled = false;
+dragZone.addEventListener('dragover',e=>{e.preventDefault();dragZone.classList.add('over')});
+dragZone.addEventListener('dragleave',()=>dragZone.classList.remove('over'));
+dragZone.addEventListener('drop',e=>{
+  e.preventDefault();dragZone.classList.remove('over');
+  const f=e.dataTransfer.files[0];
+  if(f&&f.type.startsWith('image/')) handleFile(f,'gallery');
 });
+
+retakeBtn.addEventListener('click',()=>{
+  blob=null;prevSec.style.display='none';
+  resultCard.style.display='none';clearErr();
+  cameraInput.value='';galleryInput.value='';
+});
+newPhotoBtn.addEventListener('click',()=>{
+  resultCard.style.display='none';prevSec.style.display='none';
+  blob=null;cameraInput.value='';galleryInput.value='';clearErr();
+  window.scrollTo({top:0,behavior:'smooth'});
+});
+
+// ── SUBMIT ──
+submitBtn.addEventListener('click', async()=>{
+  if(!blob)return;
+  submitBtn.disabled=true;retakeBtn.disabled=true;
+  setStatus('Uploading…',25);
+  const fd=new FormData();fd.append('photo',blob,'photo.jpg');
+
+  let pct=25;
+  const tick=setInterval(()=>{
+    pct=Math.min(80,pct+7);progFill.style.width=pct+'%';
+    if(pct>40) statusText.textContent='Detecting rings…';
+    if(pct>65) statusText.textContent='Validating count…';
+  },500);
+
+  try{
+    const r=await fetch('/count',{method:'POST',body:fd});
+    const raw=await r.text();
+    clearInterval(tick);progFill.style.width='100%';
+    let d;
+    try{d=JSON.parse(raw);}
+    catch{showError('Unexpected server response. Try again.');
+      submitBtn.disabled=false;retakeBtn.disabled=false;return;}
+    if(d.error){showError(d.error);submitBtn.disabled=false;retakeBtn.disabled=false;return;}
+    setTimeout(()=>{hideStatus();renderResult(d);},300);
+  }catch(err){
+    clearInterval(tick);showError('Network error: '+err.message);
+  }
+  submitBtn.disabled=false;retakeBtn.disabled=false;
+});
+
+// ── TABS ──
+function switchTab(t){
+  document.getElementById('view-full').style.display = t==='full'?'block':'none';
+  document.getElementById('view-crop').style.display = t==='crop'?'block':'none';
+  document.getElementById('tab-full').classList.toggle('active',t==='full');
+  document.getElementById('tab-crop').classList.toggle('active',t==='crop');
+}
+
+// ── RENDER RESULT ──
+function renderResult(d){
+  hideStatus();
+  fullUrl=d.image_data_url;
+  cropUrl=d.crop_data_url;
+
+  document.getElementById('resultImg').src=fullUrl;
+  document.getElementById('cropImg').src=cropUrl;
+  document.getElementById('ringCount').textContent=d.ring_count;
+  document.getElementById('ringCount2').textContent=d.ring_count;
+
+  const badge=document.getElementById('confBadge');
+  badge.textContent=d.confidence+' confidence';
+  badge.className='conf-badge conf-'+d.confidence;
+
+  // Metrics
+  const cp=Math.round(d.consistency*100);
+  document.getElementById('m-con').textContent=cp+'%';
+  document.getElementById('b-con').style.width=cp+'%';
+
+  const bp=Math.min(100,Math.round(d.blur_score/3));
+  document.getElementById('m-blur').textContent=d.blur_score;
+  document.getElementById('b-blur').style.width=bp+'%';
+
+  const brp=Math.round(d.brightness/255*100);
+  document.getElementById('m-bright').textContent=d.brightness;
+  document.getElementById('b-bright').style.width=brp+'%';
+
+  document.getElementById('m-glare').textContent=d.glare+'%';
+  document.getElementById('b-glare').style.width=Math.min(100,d.glare)+'%';
+
+  // Tips
+  const tips=[];
+  if(d.blur_score<60)  tips.push('Image blurry — hold phone steady, ensure focus');
+  if(d.glare>15)       tips.push('High glare — avoid direct light on shiny rings');
+  if(d.brightness<35)  tips.push('Too dark — move to better lighting');
+  if(d.brightness>220) tips.push('Overexposed — reduce lighting or move back');
+  if(!d.box_reliable)  tips.push('Stack hard to isolate — use plain background, shoot only ONE stack');
+  if(d.consistency<0.4)tips.push('Uneven spacing — shoot straight-on, not at an angle');
+  if(d.glare>20&&d.brightness>180) tips.push('For shiny metal rings: shoot slightly from the side to reduce reflections');
+
+  const tc=document.getElementById('tips-card');
+  const tl=document.getElementById('tips-list');
+  if(tips.length){
+    tl.innerHTML=tips.map(t=>`<li>${t}</li>`).join('');
+    tc.classList.add('show');
+  }else tc.classList.remove('show');
+
+  addHistory(d.ring_count, d.confidence);
+  switchTab('full');
+  resultCard.style.display='block';
+  resultCard.scrollIntoView({behavior:'smooth',block:'start'});
+}
+
+// ── DOWNLOAD ──
+function dlImg(url, name){
+  if(!url)return;
+  const a=document.createElement('a');a.href=url;a.download=name;a.click();
+}
+document.getElementById('dlFullBtn').addEventListener('click',()=>dlImg(fullUrl,`ring-full-${Date.now()}.jpg`));
+document.getElementById('dlCropBtn').addEventListener('click',()=>dlImg(cropUrl,`ring-crop-${Date.now()}.jpg`));
+
+// ── HISTORY ──
+function addHistory(cnt,conf){
+  const t=new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});
+  history.unshift({cnt,conf,t});
+  if(history.length>6)history.pop();
+  histList.innerHTML=history.map(h=>`
+    <div class="hist-item">
+      <div class="hi-cnt">${h.cnt}</div>
+      <div class="hi-conf">${h.conf}</div>
+      <div class="hi-time">${h.t}</div>
+    </div>`).join('');
+  histCard.style.display='block';
+}
 </script>
 </body>
 </html>
