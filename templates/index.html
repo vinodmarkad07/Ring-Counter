@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
-<title>RingCount AI v3</title>
+<title>RingCount AI v4</title>
 <style>
 :root{
   --bg:#080c12;--bg2:#0d1117;--surf:#13181f;--surf2:#1a2030;--surf3:#1f2736;
@@ -24,7 +24,6 @@ body{min-height:100%;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Rob
 .page{position:relative;z-index:1;min-height:100vh;display:flex;flex-direction:column;
   align-items:center;padding:0 16px 60px}
 
-/* NAV */
 .topnav{width:100%;max-width:580px;display:flex;align-items:center;
   justify-content:space-between;padding:18px 0 0;margin-bottom:28px}
 .brand{display:flex;align-items:center;gap:10px}
@@ -37,18 +36,16 @@ body{min-height:100%;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Rob
 .vtag{font-size:10px;font-weight:700;color:var(--green2);background:rgba(16,185,129,.12);
   border:1px solid var(--green);padding:2px 8px;border-radius:20px;letter-spacing:.5px}
 
-/* HERO */
 .hero{text-align:center;margin-bottom:24px;width:100%;max-width:580px}
 .hero h1{font-size:clamp(20px,5.5vw,28px);font-weight:800;letter-spacing:-.7px}
 .hero h1 span{background:linear-gradient(90deg,var(--blue2),var(--green2));
   -webkit-background-clip:text;-webkit-text-fill-color:transparent}
-.hero p{color:var(--text2,#a0aec0);font-size:13px;margin-top:6px;line-height:1.6}
+.hero p{color:var(--txt2);font-size:13px;margin-top:6px;line-height:1.6}
 .pills{display:flex;gap:10px;justify-content:center;margin-top:12px;flex-wrap:wrap}
 .pill{background:var(--surf);border:1px solid var(--bdr);border-radius:20px;
   padding:4px 12px;font-size:11px;color:var(--txt2);display:flex;align-items:center;gap:4px}
 .pill b{color:var(--blue2)}
 
-/* CARD */
 .card{width:100%;max-width:580px;background:var(--surf);border:1px solid var(--bdr);
   border-radius:var(--r2);padding:20px;margin-bottom:14px;
   box-shadow:0 4px 24px rgba(0,0,0,.5)}
@@ -57,7 +54,6 @@ body{min-height:100%;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Rob
 .card-title::before{content:'';width:3px;height:13px;
   background:linear-gradient(180deg,var(--blue),var(--purple));border-radius:2px}
 
-/* CAPTURE BUTTONS */
 .capture-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
 .cbtn{position:relative;border:none;border-radius:var(--r);padding:20px 12px;
   cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:7px;
@@ -69,21 +65,16 @@ body{min-height:100%;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Rob
 .cbtn .sb{font-size:11px;color:rgba(255,255,255,.75)}
 .cbtn.take{background:linear-gradient(135deg,#1d4ed8,#3b82f6);
   box-shadow:0 4px 20px rgba(59,130,246,.35)}
-.cbtn.take:hover{box-shadow:0 6px 28px rgba(59,130,246,.5)}
 .cbtn.choose{background:linear-gradient(135deg,#5b21b6,#8b5cf6);
   box-shadow:0 4px 20px rgba(139,92,246,.35)}
-.cbtn.choose:hover{box-shadow:0 6px 28px rgba(139,92,246,.5)}
 
-/* DRAG ZONE */
 .drag-zone{margin-top:12px;border:2px dashed var(--bdr2);border-radius:var(--r);
   padding:14px;text-align:center;color:var(--txt3);font-size:12px;
   transition:border-color .2s,background .2s}
 .drag-zone.over{border-color:var(--blue);background:var(--blue-g);color:var(--blue2)}
 
-/* PREVIEW */
 #prev-sec{display:none}
-.prev-hdr{display:flex;align-items:center;justify-content:space-between;
-  margin:14px 0 8px}
+.prev-hdr{display:flex;align-items:center;justify-content:space-between;margin:14px 0 8px}
 .prev-hdr span{font-size:13px;font-weight:600;color:var(--txt2)}
 .tag{font-size:11px;font-weight:700;padding:3px 10px;border-radius:20px;
   background:var(--surf2);border:1px solid var(--bdr);color:var(--txt2)}
@@ -94,7 +85,6 @@ body{min-height:100%;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Rob
   backdrop-filter:blur(6px);color:#fff;font-size:11px;font-weight:600;
   padding:4px 10px;border-radius:20px}
 
-/* BUTTONS */
 .act-row{display:grid;grid-template-columns:1fr auto;gap:10px;margin-top:12px}
 .btn{border:none;border-radius:10px;font-size:15px;font-weight:700;cursor:pointer;
   padding:14px 20px;transition:transform .12s,filter .12s,opacity .2s;
@@ -107,7 +97,23 @@ body{min-height:100%;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Rob
 .btn-retry{background:var(--surf2);border:1px solid var(--bdr);color:var(--txt2);
   font-size:13px;padding:14px 16px}
 
-/* STATUS & ERROR */
+/* AXIS TAP STEP */
+#axis-sec{display:none}
+.axis-instructions{font-size:13px;color:var(--txt2);line-height:1.6;margin-bottom:10px;
+  background:rgba(59,130,246,.08);border:1px solid rgba(59,130,246,.25);
+  border-radius:10px;padding:12px 14px}
+.axis-instructions b{color:var(--blue2)}
+.axis-wrap{position:relative;border-radius:var(--r);overflow:hidden;
+  border:1px solid var(--bdr);cursor:crosshair;touch-action:none;user-select:none}
+.axis-wrap img{width:100%;display:block;pointer-events:none}
+.axis-svg{position:absolute;inset:0;width:100%;height:100%;pointer-events:none}
+.axis-step-badge{position:absolute;top:8px;left:8px;background:rgba(0,0,0,.75);
+  backdrop-filter:blur(6px);color:#fff;font-size:12px;font-weight:700;
+  padding:5px 12px;border-radius:20px;z-index:2}
+.axis-reset{position:absolute;top:8px;right:8px;background:rgba(0,0,0,.75);
+  backdrop-filter:blur(6px);color:#fff;font-size:11px;font-weight:700;
+  padding:5px 10px;border-radius:20px;border:none;cursor:pointer;z-index:2}
+
 .status-bar{display:none;align-items:center;gap:10px;background:var(--surf2);
   border:1px solid var(--bdr);border-radius:10px;padding:11px 14px;
   margin-top:12px;font-size:13px;color:var(--txt2)}
@@ -123,10 +129,8 @@ body{min-height:100%;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Rob
   border-radius:10px;padding:11px 14px;margin-top:12px;font-size:13px;color:var(--red)}
 .err-bar.show{display:block}
 
-/* RESULT */
 #result-card{display:none}
 
-/* TABS */
 .tabs{display:flex;gap:2px;background:var(--surf2);border-radius:10px;
   padding:3px;margin-bottom:12px}
 .tab-btn{flex:1;border:none;background:transparent;color:var(--txt2);
@@ -135,7 +139,6 @@ body{min-height:100%;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Rob
 .tab-btn.active{background:var(--surf3);color:var(--txt);
   box-shadow:0 1px 4px rgba(0,0,0,.4)}
 
-/* RESULT IMAGE */
 .res-img-wrap{border-radius:var(--r);overflow:hidden;border:1px solid var(--bdr);position:relative}
 .res-img-wrap img{width:100%;display:block}
 .res-overlay{position:absolute;bottom:0;left:0;right:0;
@@ -152,7 +155,6 @@ body{min-height:100%;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Rob
 .conf-Medium{background:rgba(245,158,11,.2);color:#fbbf24;border:1px solid var(--yellow)}
 .conf-Low{background:rgba(239,68,68,.2);color:#f87171;border:1px solid var(--red)}
 
-/* LEGEND */
 .legend{display:flex;gap:16px;flex-wrap:wrap;font-size:11px;color:var(--txt3);
   margin-top:10px;padding:0 2px}
 .leg-item{display:flex;align-items:center;gap:5px}
@@ -161,7 +163,6 @@ body{min-height:100%;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Rob
 .ld-b{background:var(--blue)}
 .ld-o{background:var(--orange)}
 
-/* METRICS */
 .metrics{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:14px}
 .mbox{background:var(--surf2);border:1px solid var(--bdr);border-radius:10px;padding:12px 14px}
 .m-lbl{font-size:10px;font-weight:700;color:var(--txt3);text-transform:uppercase;letter-spacing:.6px}
@@ -169,7 +170,6 @@ body{min-height:100%;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Rob
 .m-bar{height:3px;background:var(--bdr);border-radius:2px;margin-top:8px;overflow:hidden}
 .m-bar-fill{height:100%;border-radius:2px;transition:width .8s cubic-bezier(.4,0,.2,1)}
 
-/* TIPS */
 .tips-card{display:none;margin-top:12px;background:rgba(59,130,246,.07);
   border:1px solid rgba(59,130,246,.22);border-radius:10px;padding:14px 16px}
 .tips-card.show{display:block}
@@ -180,7 +180,14 @@ body{min-height:100%;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Rob
   display:flex;align-items:flex-start;gap:6px}
 .tips-list li::before{content:"→";color:var(--blue);flex-shrink:0}
 
-/* RESULT ACTIONS */
+/* LOW CONFIDENCE WARNING (explicit, honest — not hidden in metrics) */
+.low-conf-warn{display:none;margin-top:12px;background:rgba(239,68,68,.08);
+  border:1px solid rgba(239,68,68,.3);border-radius:10px;padding:14px 16px}
+.low-conf-warn.show{display:block}
+.low-conf-warn .t{font-size:12px;font-weight:800;color:#f87171;text-transform:uppercase;
+  letter-spacing:.6px;margin-bottom:6px}
+.low-conf-warn p{font-size:12px;color:var(--txt2);line-height:1.6}
+
 .res-actions{display:flex;gap:10px;margin-top:14px;flex-wrap:wrap}
 .res-actions .btn{flex:1;min-width:130px}
 .btn-dl{background:var(--surf2);border:1px solid var(--bdr2);color:var(--txt2);
@@ -188,7 +195,6 @@ body{min-height:100%;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Rob
   display:inline-flex;align-items:center;gap:6px;transition:border-color .2s,color .2s}
 .btn-dl:hover{border-color:var(--blue);color:var(--blue2)}
 
-/* HISTORY */
 #hist-card{display:none}
 .hist-list{display:flex;gap:10px;overflow-x:auto;padding-bottom:4px}
 .hist-item{flex-shrink:0;background:var(--surf2);border:1px solid var(--bdr);
@@ -197,7 +203,6 @@ body{min-height:100%;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Rob
 .hi-conf{font-size:10px;color:var(--txt3);margin-top:2px}
 .hi-time{font-size:10px;color:var(--txt3)}
 
-/* FOOTER */
 .footer{margin-top:40px;text-align:center;font-size:11px;color:var(--txt3);line-height:2}
 
 @media(max-width:400px){
@@ -210,23 +215,21 @@ body{min-height:100%;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Rob
 <div class="bg-glow"></div>
 <div class="page">
 
-  <!-- NAV -->
   <nav class="topnav">
     <div class="brand">
       <div class="brand-icon">⭕</div>
       <span class="brand-name">RingCount AI</span>
     </div>
-    <span class="vtag">v3.0</span>
+    <span class="vtag">v4.0 · manual axis</span>
   </nav>
 
-  <!-- HERO -->
   <div class="hero">
     <h1>Count Rings <span>Accurately</span></h1>
-    <p>Smart auto-crop · Multi-strip voting · Glare suppression</p>
+    <p>Tap the stack top &amp; bottom · Multi-strip voting · Cross-strip agreement filter</p>
     <div class="pills">
       <div class="pill">📷 <b>Live camera</b></div>
       <div class="pill">🖼️ <b>Gallery</b></div>
-      <div class="pill">✂️ <b>Auto-crop</b></div>
+      <div class="pill">👆 <b>Tap to mark stack</b></div>
       <div class="pill">🗳️ <b>Vote detection</b></div>
     </div>
   </div>
@@ -260,11 +263,28 @@ body{min-height:100%;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Rob
         <div class="src-badge" id="src-badge">📷 Camera</div>
       </div>
       <div class="act-row">
-        <button class="btn btn-count" id="submitBtn">⚙️ &nbsp;Analyse Rings</button>
+        <button class="btn btn-count" id="markBtn">👆 &nbsp;Mark Stack &amp; Count</button>
         <button class="btn btn-retry" id="retakeBtn">🔄 Retry</button>
       </div>
     </div>
+  </div>
 
+  <!-- AXIS TAP CARD -->
+  <div class="card" id="axis-sec">
+    <div class="card-title">Mark The Stack</div>
+    <div class="axis-instructions" id="axis-instr">
+      👆 Tap the <b>top edge</b> of the stack (where the topmost ring starts).
+    </div>
+    <div class="axis-wrap" id="axis-wrap">
+      <span class="axis-step-badge" id="axis-step-badge">Step 1 of 2</span>
+      <button class="axis-reset" id="axis-reset-btn">↺ Reset taps</button>
+      <img id="axisImg" alt="Tap to mark stack">
+      <svg class="axis-svg" id="axisSvg"></svg>
+    </div>
+    <div class="act-row" style="margin-top:12px">
+      <button class="btn btn-count" id="confirmAxisBtn" disabled>⚙️ Analyse Rings</button>
+      <button class="btn btn-retry" id="backToUploadBtn">← Back</button>
+    </div>
     <div class="status-bar" id="status-bar">
       <div class="spinner"></div>
       <span id="status-text">Processing…</span>
@@ -277,17 +297,11 @@ body{min-height:100%;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Rob
   <div class="card" id="result-card">
     <div class="card-title">Detection Result</div>
 
-    <!-- Tabs: Full image | Cropped stack -->
     <div class="tabs">
-      <button class="tab-btn active" id="tab-full" onclick="switchTab('full')">
-        📐 Full Image
-      </button>
-      <button class="tab-btn" id="tab-crop" onclick="switchTab('crop')">
-        ✂️ Cropped Stack
-      </button>
+      <button class="tab-btn active" id="tab-full" onclick="switchTab('full')">📐 Full Image</button>
+      <button class="tab-btn" id="tab-crop" onclick="switchTab('crop')">✂️ Cropped Stack</button>
     </div>
 
-    <!-- Full image view -->
     <div id="view-full">
       <div class="res-img-wrap">
         <img id="resultImg" alt="Result">
@@ -300,12 +314,11 @@ body{min-height:100%;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Rob
         </div>
       </div>
       <div class="legend">
-        <div class="leg-item"><div class="leg-dot ld-g"></div>Stack boundary</div>
+        <div class="leg-item"><div class="leg-dot ld-g"></div>Your marked stack region</div>
         <div class="leg-item"><div class="leg-dot ld-g" style="background:#00ff80"></div>Ring lines</div>
       </div>
     </div>
 
-    <!-- Cropped stack view -->
     <div id="view-crop" style="display:none">
       <div class="res-img-wrap">
         <img id="cropImg" alt="Cropped Stack">
@@ -314,66 +327,60 @@ body{min-height:100%;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Rob
             <div class="cnt-num" id="ringCount2">—</div>
             <div class="cnt-lbl">rings</div>
           </div>
-          <div class="conf-badge conf-High" style="font-size:11px">AUTO-CROP</div>
         </div>
       </div>
       <p style="font-size:11px;color:var(--txt3);margin-top:8px;text-align:center">
-        Tight crop of detected stack — verify ring lines match real rings
+        Cropped to your marked region — verify each green line matches a real ring seam
       </p>
     </div>
 
-    <!-- Metrics -->
     <div class="metrics" style="margin-top:14px">
       <div class="mbox">
         <div class="m-lbl">Consistency</div>
         <div class="m-val" id="m-con">—</div>
-        <div class="m-bar"><div class="m-bar-fill" id="b-con"
-          style="width:0%;background:var(--blue)"></div></div>
+        <div class="m-bar"><div class="m-bar-fill" id="b-con" style="width:0%;background:var(--blue)"></div></div>
       </div>
       <div class="mbox">
         <div class="m-lbl">Sharpness</div>
         <div class="m-val" id="m-blur">—</div>
-        <div class="m-bar"><div class="m-bar-fill" id="b-blur"
-          style="width:0%;background:var(--green)"></div></div>
+        <div class="m-bar"><div class="m-bar-fill" id="b-blur" style="width:0%;background:var(--green)"></div></div>
       </div>
       <div class="mbox">
         <div class="m-lbl">Brightness</div>
         <div class="m-val" id="m-bright">—</div>
-        <div class="m-bar"><div class="m-bar-fill" id="b-bright"
-          style="width:0%;background:var(--yellow)"></div></div>
+        <div class="m-bar"><div class="m-bar-fill" id="b-bright" style="width:0%;background:var(--yellow)"></div></div>
       </div>
       <div class="mbox">
         <div class="m-lbl">Glare</div>
         <div class="m-val" id="m-glare">—</div>
-        <div class="m-bar"><div class="m-bar-fill" id="b-glare"
-          style="width:0%;background:var(--red)"></div></div>
+        <div class="m-bar"><div class="m-bar-fill" id="b-glare" style="width:0%;background:var(--red)"></div></div>
       </div>
     </div>
 
-    <!-- Tips -->
+    <!-- Honest low-confidence warning, shown explicitly, not buried -->
+    <div class="low-conf-warn" id="low-conf-warn">
+      <div class="t">⚠ Low confidence — verify manually</div>
+      <p>The algorithm isn't confident in this count. Check the cropped image against the real stack, or recount by hand before reporting this number.</p>
+    </div>
+
     <div class="tips-card" id="tips-card">
       <div class="tips-title">💡 Tips to improve accuracy</div>
       <ul class="tips-list" id="tips-list"></ul>
     </div>
 
-    <!-- Actions -->
     <div class="res-actions">
-      <button class="btn btn-count" id="newPhotoBtn"
-        style="background:linear-gradient(90deg,var(--blue),var(--purple))">
-        📷 New Photo
-      </button>
+      <button class="btn btn-count" id="newPhotoBtn" style="background:linear-gradient(90deg,var(--blue),var(--purple))">📷 New Photo</button>
       <button class="btn-dl" id="dlFullBtn">⬇️ Full</button>
       <button class="btn-dl" id="dlCropBtn">⬇️ Crop</button>
     </div>
   </div>
 
-  <!-- HISTORY -->
   <div class="card" id="hist-card">
     <div class="card-title">📋 Recent Counts</div>
     <div class="hist-list" id="hist-list"></div>
   </div>
 
-  <div class="footer">RingCount AI v3 &nbsp;·&nbsp; OpenCV + Multi-strip Voting<br>
+  <div class="footer">RingCount AI v4 &nbsp;·&nbsp; OpenCV + Manual Axis + Multi-strip Voting<br>
     <span style="color:var(--txt3)">© 2026</span></div>
 </div>
 
@@ -385,7 +392,7 @@ const prevSec     = document.getElementById('prev-sec');
 const previewImg  = document.getElementById('preview');
 const sizeTag     = document.getElementById('size-tag');
 const srcBadge    = document.getElementById('src-badge');
-const submitBtn   = document.getElementById('submitBtn');
+const markBtn     = document.getElementById('markBtn');
 const retakeBtn   = document.getElementById('retakeBtn');
 const statusBar   = document.getElementById('status-bar');
 const statusText  = document.getElementById('status-text');
@@ -397,7 +404,18 @@ const dragZone    = document.getElementById('drag-zone');
 const histCard    = document.getElementById('hist-card');
 const histList    = document.getElementById('hist-list');
 
+const axisSec       = document.getElementById('axis-sec');
+const axisImg        = document.getElementById('axisImg');
+const axisSvg         = document.getElementById('axisSvg');
+const axisWrap         = document.getElementById('axis-wrap');
+const axisInstr          = document.getElementById('axis-instr');
+const axisStepBadge       = document.getElementById('axis-step-badge');
+const axisResetBtn         = document.getElementById('axis-reset-btn');
+const confirmAxisBtn        = document.getElementById('confirmAxisBtn');
+const backToUploadBtn        = document.getElementById('backToUploadBtn');
+
 let blob = null, fullUrl = null, cropUrl = null;
+let tapTop = null, tapBottom = null;   // {xFrac, yFrac} each, relative to displayed image
 const history = [];
 
 // ── COMPRESS ──
@@ -436,7 +454,7 @@ function clearErr(){errBar.classList.remove('show')}
 // ── FILE HANDLE ──
 async function handleFile(file,src){
   if(!file)return;
-  clearErr();resultCard.style.display='none';
+  clearErr();resultCard.style.display='none';axisSec.style.display='none';
   setStatus('Compressing…',20);
   try{ blob=await compress(file); }
   catch(e){hideStatus();showError(e.message);return;}
@@ -464,17 +482,100 @@ retakeBtn.addEventListener('click',()=>{
   cameraInput.value='';galleryInput.value='';
 });
 newPhotoBtn.addEventListener('click',()=>{
-  resultCard.style.display='none';prevSec.style.display='none';
+  resultCard.style.display='none';prevSec.style.display='none';axisSec.style.display='none';
   blob=null;cameraInput.value='';galleryInput.value='';clearErr();
   window.scrollTo({top:0,behavior:'smooth'});
 });
+backToUploadBtn.addEventListener('click',()=>{
+  axisSec.style.display='none';
+  prevSec.style.display='block';
+  clearErr();
+});
 
-// ── SUBMIT ──
-submitBtn.addEventListener('click', async()=>{
+// ── AXIS TAP STEP ──
+markBtn.addEventListener('click',()=>{
   if(!blob)return;
-  submitBtn.disabled=true;retakeBtn.disabled=true;
+  tapTop=null;tapBottom=null;
+  axisImg.src=previewImg.src;
+  axisSec.style.display='block';
+  prevSec.style.display='none';
+  updateAxisUI();
+  axisSec.scrollIntoView({behavior:'smooth',block:'start'});
+});
+
+axisResetBtn.addEventListener('click',()=>{
+  tapTop=null;tapBottom=null;
+  updateAxisUI();
+});
+
+function getTapFrac(evt){
+  const rect=axisWrap.getBoundingClientRect();
+  const cx = (evt.touches&&evt.touches[0]) ? evt.touches[0].clientX : evt.clientX;
+  const cy = (evt.touches&&evt.touches[0]) ? evt.touches[0].clientY : evt.clientY;
+  const xFrac = Math.min(1,Math.max(0,(cx-rect.left)/rect.width));
+  const yFrac = Math.min(1,Math.max(0,(cy-rect.top)/rect.height));
+  return {xFrac,yFrac};
+}
+
+function onAxisTap(evt){
+  evt.preventDefault();
+  const p = getTapFrac(evt);
+  if(!tapTop){ tapTop=p; }
+  else if(!tapBottom){
+    if(p.yFrac<=tapTop.yFrac+0.02){ return; } // ignore taps not clearly below top
+    tapBottom=p;
+  } else {
+    // both set — re-tapping starts a new pair from the top
+    tapTop=p; tapBottom=null;
+  }
+  updateAxisUI();
+}
+axisWrap.addEventListener('click',onAxisTap);
+axisWrap.addEventListener('touchstart',onAxisTap,{passive:false});
+
+function updateAxisUI(){
+  const w=axisWrap.clientWidth, h=axisWrap.clientHeight;
+  axisSvg.setAttribute('viewBox',`0 0 ${w} ${h}`);
+  let svg='';
+  if(tapTop){
+    svg+=`<line x1="0" y1="${tapTop.yFrac*h}" x2="${w}" y2="${tapTop.yFrac*h}" stroke="#00ff80" stroke-width="2.5"/>`;
+    svg+=`<circle cx="${tapTop.xFrac*w}" cy="${tapTop.yFrac*h}" r="7" fill="#00ff80" stroke="#08120c" stroke-width="2"/>`;
+  }
+  if(tapBottom){
+    svg+=`<line x1="0" y1="${tapBottom.yFrac*h}" x2="${w}" y2="${tapBottom.yFrac*h}" stroke="#3b82f6" stroke-width="2.5"/>`;
+    svg+=`<circle cx="${tapBottom.xFrac*w}" cy="${tapBottom.yFrac*h}" r="7" fill="#3b82f6" stroke="#08120c" stroke-width="2"/>`;
+    // shaded axis band between the two taps, centered on the average x
+    const cx=((tapTop.xFrac+tapBottom.xFrac)/2)*w;
+    const bandW=Math.max(20,(tapBottom.yFrac-tapTop.yFrac)*h*0.22);
+    svg+=`<rect x="${cx-bandW}" y="${tapTop.yFrac*h}" width="${bandW*2}" height="${(tapBottom.yFrac-tapTop.yFrac)*h}" fill="rgba(16,185,129,0.15)" stroke="#10b981" stroke-width="1.5"/>`;
+  }
+  axisSvg.innerHTML=svg;
+
+  if(!tapTop){
+    axisStepBadge.textContent='Step 1 of 2';
+    axisInstr.innerHTML='👆 Tap the <b>top edge</b> of the stack (where the topmost ring starts).';
+    confirmAxisBtn.disabled=true;
+  } else if(!tapBottom){
+    axisStepBadge.textContent='Step 2 of 2';
+    axisInstr.innerHTML='👆 Now tap the <b>bottom edge</b> of the stack (where it meets the ground/pallet).';
+    confirmAxisBtn.disabled=true;
+  } else {
+    axisStepBadge.textContent='Ready';
+    axisInstr.innerHTML='✅ Stack marked. Tap anywhere to redo, or hit <b>Analyse Rings</b> below.';
+    confirmAxisBtn.disabled=false;
+  }
+}
+
+// ── SUBMIT (now sends tap fractions) ──
+confirmAxisBtn.addEventListener('click', async()=>{
+  if(!blob||!tapTop||!tapBottom)return;
+  confirmAxisBtn.disabled=true;backToUploadBtn.disabled=true;
   setStatus('Uploading…',25);
-  const fd=new FormData();fd.append('photo',blob,'photo.jpg');
+  const fd=new FormData();
+  fd.append('photo',blob,'photo.jpg');
+  fd.append('top_frac',tapTop.yFrac.toFixed(4));
+  fd.append('bottom_frac',tapBottom.yFrac.toFixed(4));
+  fd.append('x_frac',((tapTop.xFrac+tapBottom.xFrac)/2).toFixed(4));
 
   let pct=25;
   const tick=setInterval(()=>{
@@ -490,13 +591,13 @@ submitBtn.addEventListener('click', async()=>{
     let d;
     try{d=JSON.parse(raw);}
     catch{showError('Unexpected server response. Try again.');
-      submitBtn.disabled=false;retakeBtn.disabled=false;return;}
-    if(d.error){showError(d.error);submitBtn.disabled=false;retakeBtn.disabled=false;return;}
-    setTimeout(()=>{hideStatus();renderResult(d);},300);
+      confirmAxisBtn.disabled=false;backToUploadBtn.disabled=false;return;}
+    if(d.error){showError(d.error);confirmAxisBtn.disabled=false;backToUploadBtn.disabled=false;return;}
+    setTimeout(()=>{hideStatus();axisSec.style.display='none';renderResult(d);},300);
   }catch(err){
     clearInterval(tick);showError('Network error: '+err.message);
   }
-  submitBtn.disabled=false;retakeBtn.disabled=false;
+  confirmAxisBtn.disabled=false;backToUploadBtn.disabled=false;
 });
 
 // ── TABS ──
@@ -522,7 +623,6 @@ function renderResult(d){
   badge.textContent=d.confidence+' confidence';
   badge.className='conf-badge conf-'+d.confidence;
 
-  // Metrics
   const cp=Math.round(d.consistency*100);
   document.getElementById('m-con').textContent=cp+'%';
   document.getElementById('b-con').style.width=cp+'%';
@@ -538,14 +638,15 @@ function renderResult(d){
   document.getElementById('m-glare').textContent=d.glare+'%';
   document.getElementById('b-glare').style.width=Math.min(100,d.glare)+'%';
 
-  // Tips
+  document.getElementById('low-conf-warn').classList.toggle('show', d.confidence==='Low');
+
   const tips=[];
   if(d.blur_score<60)  tips.push('Image blurry — hold phone steady, ensure focus');
   if(d.glare>15)       tips.push('High glare — avoid direct light on shiny rings');
   if(d.brightness<35)  tips.push('Too dark — move to better lighting');
   if(d.brightness>220) tips.push('Overexposed — reduce lighting or move back');
-  if(!d.box_reliable)  tips.push('Stack hard to isolate — use plain background, shoot only ONE stack');
-  if(d.consistency<0.4)tips.push('Uneven spacing — shoot straight-on, not at an angle');
+  if(d.consistency<0.4)tips.push('Uneven spacing detected — retake straight-on, not at an angle');
+  if(d.rejected_peaks>2)tips.push('Several ring lines were rejected as unreliable — retap the stack more tightly around just the rings (avoid background)');
   if(d.glare>20&&d.brightness>180) tips.push('For shiny metal rings: shoot slightly from the side to reduce reflections');
 
   const tc=document.getElementById('tips-card');

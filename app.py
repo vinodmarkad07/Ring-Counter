@@ -1,13 +1,26 @@
 """
-RingCount AI v3 - Smart Auto-Crop + Accurate Ring Detection
+RingCount AI v4 — Manual-Axis Edition
 ============================================================
-Key improvements over v2:
-  1. Smart auto-crop: finds the TALLEST single stack column in frame
-  2. Multi-strip voting: uses 5 vertical strips and votes on peak positions
-     (eliminates false peaks from glare/dirt on one side)
-  3. Adaptive prominence: adjusts sensitivity based on ring contrast
-  4. Glare suppression: masks overexposed bands before peak detection
-  5. Returns cropped stack image separately for user verification
+Why this version exists:
+  v3 auto-detected the stack boundary using Sobel edge density.
+  On real client photos it locked onto ceiling rafters, glare
+  streaks, and cardboard tags instead of the ring stack, because
+  ANY strong horizontal edge scored the same as a ring seam.
+  That is a structural failure, not a tuning problem — no
+  amount of peak-detection tweaking fixes a wrong input region.
+
+  v4 removes auto stack-detection entirely. The user taps the
+  TOP and BOTTOM of the stack on the photo (2 taps, ~2 seconds).
+  This guarantees the measuring axis is always inside the real
+  stack, which is what actually drives accuracy. Peak detection
+  and gap validation are also tightened so a bad/ambiguous photo
+  reports LOW confidence instead of silently guessing.
+
+  This does not promise 100% accuracy on every photo — no vision
+  system can promise that on damaged/warped/dirty stacks. It
+  promises that when the algorithm reports HIGH confidence, the
+  count is trustworthy, and when it isn't, it tells you honestly
+  instead of hiding it.
 """
 
 import os, base64, tempfile, logging, time
@@ -26,32 +39,26 @@ UPLOAD_DIR = tempfile.gettempdir()
 
 
 # ─────────────────────────────────────────────
-# CONFIG  (tuned for your actual ring photos)
+# CONFIG
 # ─────────────────────────────────────────────
 class Config:
-    MAX_WIDTH               = 1000
-    CLAHE_CLIP              = 2.5
-    CLAHE_GRID              = (8, 8)
-    # Multi-strip voting
-    N_STRIPS                = 7       # number of vertical strips to sample
-    STRIP_WIDTH_FRAC        = 0.06    # each strip is 6% of stack width
-    VOTE_THRESHOLD          = 0.4     # peak must appear in 40%+ of strips
-    # Peak detection
-    LOCAL_NORM_WINDOW       = 51
-    PEAK_DISTANCE_FRAC      = 0.012
-    PEAK_PROMINENCE_FRAC    = 0.06
-    # Gap validation
-    GAP_OUTLIER_TOLERANCE   = 0.50
-    # Stack detection
-    MIN_ASPECT_RATIO        = 0.5     # stack must be taller than it is wide (h/w)
-    MIN_AREA_FRAC           = 0.04
-    MAX_AREA_FRAC           = 0.90
-    # Quality thresholds
-    BLUR_WARN               = 60
-    BRIGHTNESS_WARN_LOW     = 35
-    BRIGHTNESS_WARN_HIGH    = 225
-    GLARE_THRESH            = 235     # pixel value = overexposed
-    GLARE_SUPPRESS_FRAC     = 0.08   # if glare > 8% of strip, suppress those rows
+    MAX_WIDTH               = 1200
+    CLAHE_CLIP               = 2.5
+    CLAHE_GRID                = (8, 8)
+    N_STRIPS                  = 9
+    STRIP_WIDTH_FRAC          = 0.06
+    AXIS_HALF_WIDTH_FRAC      = 0.22
+    LOCAL_NORM_WINDOW         = 41
+    PEAK_DISTANCE_FRAC        = 0.015
+    PEAK_PROMINENCE_FRAC      = 0.09
+    VOTE_PROMINENCE_FRAC      = 0.10
+    GAP_OUTLIER_TOLERANCE     = 0.35
+    MIN_STRIPS_AGREEING       = 0.55
+    BLUR_WARN                 = 60
+    BRIGHTNESS_WARN_LOW       = 35
+    BRIGHTNESS_WARN_HIGH      = 225
+    GLARE_THRESH               = 235
+    GLARE_SUPPRESS_FRAC        = 0.08
 
 
 # ─────────────────────────────────────────────
@@ -60,14 +67,13 @@ class Config:
 def resize_image(img, max_width=Config.MAX_WIDTH):
     h, w = img.shape[:2]
     if w <= max_width:
-        return img
+        return img, 1.0
     s = max_width / w
-    return cv2.resize(img, (max_width, int(h * s)), interpolation=cv2.INTER_AREA)
+    return cv2.resize(img, (max_width, int(h * s)), interpolation=cv2.INTER_AREA), s
 
 
 def enhance_contrast(gray):
-    clahe = cv2.createCLAHE(clipLimit=Config.CLAHE_CLIP,
-                             tileGridSize=Config.CLAHE_GRID)
+    clahe = cv2.createCLAHE(clipLimit=Config.CLAHE_CLIP, tileGridSize=Config.CLAHE_GRID)
     return clahe.apply(gray)
 
 
@@ -86,93 +92,9 @@ def check_glare(gray, box):
 
 
 # ─────────────────────────────────────────────
-# SMART STACK DETECTION
-# Finds the single best (tallest, most centered) stack column
-# Works even when multiple stacks are in frame
-# ─────────────────────────────────────────────
-def detect_best_stack(gray, img_bgr):
-    """
-    Strategy:
-    1. Edge-detect to find strong horizontal lines (ring boundaries)
-    2. Find vertical region with most horizontal edges = ring stack
-    3. Crop tightly around that column
-    4. Return tight crop box
-    """
-    h, w = gray.shape[:2]
-    enhanced = enhance_contrast(gray)
-
-    # --- Step 1: Find horizontal edges (ring seams) ---
-    # Sobel in Y direction picks up horizontal transitions (ring-to-ring gaps)
-    sobel_y = cv2.Sobel(enhanced, cv2.CV_64F, 0, 1, ksize=3)
-    sobel_y = np.abs(sobel_y)
-    # Keep only strong horizontal edges
-    _, edge_mask = cv2.threshold(
-        sobel_y.astype(np.uint8),
-        sobel_y.mean() + sobel_y.std(),
-        255, cv2.THRESH_BINARY
-    )
-
-    # --- Step 2: Vertical projection — find column with most horizontal edges ---
-    col_score = np.sum(edge_mask, axis=0).astype(float)
-    # Smooth to find the center column
-    col_score_smooth = np.convolve(col_score, np.ones(30)/30, mode='same')
-    best_col = int(np.argmax(col_score_smooth))
-
-    # --- Step 3: Expand left/right from best column while edge density stays high ---
-    thresh = col_score_smooth.max() * 0.25
-    left = best_col
-    right = best_col
-    while left > 0 and col_score_smooth[left] > thresh:
-        left -= 1
-    while right < w - 1 and col_score_smooth[right] > thresh:
-        right += 1
-
-    stack_w = right - left
-    if stack_w < w * 0.05:
-        left  = max(0, best_col - w // 4)
-        right = min(w, best_col + w // 4)
-        stack_w = right - left
-
-    # --- Step 4: Find vertical extent of the stack ---
-    # Row projection inside detected column
-    col_region = edge_mask[:, left:right]
-    row_score = np.sum(col_region, axis=1).astype(float)
-    row_smooth = np.convolve(row_score, np.ones(10)/10, mode='same')
-    row_thresh = row_smooth.max() * 0.15
-
-    rows_active = np.where(row_smooth > row_thresh)[0]
-    if len(rows_active) < 20:
-        top, bot = 0, h
-    else:
-        top = max(0, int(rows_active[0]) - 10)
-        bot = min(h, int(rows_active[-1]) + 10)
-
-    stack_h = bot - top
-    if stack_h < h * 0.10:
-        top, bot = 0, h
-        stack_h = h
-
-    # Reliability: good if aspect ratio looks like a stack
-    aspect = stack_h / max(stack_w, 1)
-    area_frac = (stack_w * stack_h) / float(w * h)
-    reliable = (aspect >= Config.MIN_ASPECT_RATIO and
-                Config.MIN_AREA_FRAC <= area_frac <= Config.MAX_AREA_FRAC)
-
-    box = (left, top, stack_w, stack_h)
-    logger.info(f"Stack detected: box={box} aspect={aspect:.2f} "
-                f"area_frac={area_frac:.2f} reliable={reliable}")
-    return box, reliable, area_frac
-
-
-# ─────────────────────────────────────────────
-# MULTI-STRIP VOTING  (core accuracy improvement)
-# Samples N_STRIPS vertical strips across the stack,
-# runs peak detection on each, then votes.
-# A peak position counts only if it appears in
-# VOTE_THRESHOLD fraction of strips.
+# MULTI-STRIP VOTING (runs strictly inside the user-tapped axis box)
 # ─────────────────────────────────────────────
 def suppress_glare_rows(strip, thresh=Config.GLARE_THRESH):
-    """Replace overexposed rows with local median so they don't create fake peaks."""
     col_means = np.mean(strip, axis=1)
     glare_rows = col_means > thresh
     if glare_rows.sum() > 0:
@@ -203,22 +125,18 @@ def get_peaks_from_profile(profile, n_rows):
     return peaks
 
 
-def multi_strip_vote(enhanced, stack_box):
-    """
-    Run peak detection on N_STRIPS evenly-spaced vertical strips.
-    Return consensus peaks via a vote map.
-    """
-    sx, sy, sw, sh = stack_box
+def multi_strip_vote(enhanced, axis_box):
+    """axis_box is the user-defined column — guaranteed inside the real stack."""
+    sx, sy, sw, sh = axis_box
     n  = Config.N_STRIPS
     sw_strip = max(3, int(sw * Config.STRIP_WIDTH_FRAC))
 
-    # evenly space strip centres across middle 80% of stack width
-    margin = int(sw * 0.10)
+    margin = int(sw * 0.08)
     xs = np.linspace(sx + margin, sx + sw - margin, n, dtype=int)
 
     vote_map = np.zeros(sh, dtype=float)
+    strips_hit = np.zeros(sh, dtype=int)
 
-    strip_boxes = []
     for cx in xs:
         x0 = max(sx, cx - sw_strip // 2)
         x1 = min(sx + sw, x0 + sw_strip)
@@ -226,31 +144,34 @@ def multi_strip_vote(enhanced, stack_box):
         strip = suppress_glare_rows(strip)
         profile = np.mean(strip.astype(np.float64), axis=1)
         peaks   = get_peaks_from_profile(profile, sh)
-        # Gaussian splat each peak into vote map (width = ring-gap estimate)
+        sigma = max(2, sh * 0.007)
+        rr = np.arange(sh)
         for p in peaks:
-            sigma = max(2, sh * 0.008)
-            rr = np.arange(sh)
             vote_map += np.exp(-0.5 * ((rr - p) / sigma)**2)
-        strip_boxes.append((x0, sy, x1-x0, sh))
+            strips_hit[max(0, p-2):min(sh, p+3)] += 1
 
-    # Normalize vote map
     vote_map /= n
 
-    # Find peaks in vote map = consensus ring positions
     if vote_map.max() < 1e-6:
-        return np.array([], dtype=int), strip_boxes
+        return np.array([], dtype=int), 0
 
     vmin, vmax = vote_map.min(), vote_map.max()
     vote_norm  = (vote_map - vmin) / (vmax - vmin + 1e-9)
 
     rng = vote_norm.max() - vote_norm.min()
-    prominence = max(rng * 0.06, 0.02)
+    prominence = max(rng * Config.VOTE_PROMINENCE_FRAC, 0.03)
     distance   = max(1, int(sh * Config.PEAK_DISTANCE_FRAC))
 
-    consensus_peaks, _ = find_peaks(vote_norm,
-                                     prominence=prominence,
-                                     distance=distance)
-    return consensus_peaks, strip_boxes
+    candidate_peaks, _ = find_peaks(vote_norm, prominence=prominence, distance=distance)
+
+    # Reject peaks that fewer than MIN_STRIPS_AGREEING of strips actually voted for.
+    # A peak caused by clutter on one side of the frame (a rafter, a reflection) only
+    # shows up in 1-2 strips and gets dropped here — this is the key fix vs v3.
+    min_hits = max(1, int(np.ceil(n * Config.MIN_STRIPS_AGREEING)))
+    confirmed = np.array([p for p in candidate_peaks if strips_hit[p] >= min_hits], dtype=int)
+
+    rejected_count = len(candidate_peaks) - len(confirmed)
+    return confirmed, rejected_count
 
 
 # ─────────────────────────────────────────────
@@ -263,8 +184,7 @@ def validate_gaps(peaks):
     med  = np.median(gaps)
     if med <= 0:
         return peaks, 0.0
-    keep = [True] + [abs(g - med) / med <= Config.GAP_OUTLIER_TOLERANCE
-                     for g in gaps]
+    keep = [True] + [abs(g - med) / med <= Config.GAP_OUTLIER_TOLERANCE for g in gaps]
     filtered = peaks[np.array(keep)]
     g2 = np.diff(filtered) if len(filtered) > 1 else np.array([med])
     consistency = 1.0 - min(1.0, float(np.std(g2) / (np.mean(g2) + 1e-9)))
@@ -276,35 +196,31 @@ def count_rings(filtered_peaks):
     return max(0, n - 1) if n >= 2 else n
 
 
-def compute_confidence(consistency, blur, brightness, n_peaks, reliable):
+def compute_confidence(consistency, blur, brightness, n_peaks, rejected_count):
     score = consistency
-    if not reliable:           score -= 0.45
-    if blur < Config.BLUR_WARN: score -= 0.25
+    if blur < Config.BLUR_WARN:                score -= 0.25
     if (brightness < Config.BRIGHTNESS_WARN_LOW or
             brightness > Config.BRIGHTNESS_WARN_HIGH): score -= 0.15
-    if n_peaks < 4:            score -= 0.2
-    if score >= 0.60: return "High"
-    if score >= 0.30: return "Medium"
+    if n_peaks < 4:                              score -= 0.25
+    if rejected_count > n_peaks * 0.3:            score -= 0.15
+    if score >= 0.65: return "High"
+    if score >= 0.35: return "Medium"
     return "Low"
 
 
 # ─────────────────────────────────────────────
 # ANNOTATION
 # ─────────────────────────────────────────────
-def annotate(img, stack_box, consensus_peaks, ring_count, reliable):
+def annotate(img, axis_box, confirmed_peaks, ring_count):
     out  = img.copy()
-    sx, sy, sw, sh = stack_box
+    sx, sy, sw, sh = axis_box
 
-    # Stack box
-    color = (0, 200, 0) if reliable else (0, 100, 255)
-    cv2.rectangle(out, (sx, sy), (sx+sw, sy+sh), color, 2)
+    cv2.rectangle(out, (sx, sy), (sx+sw, sy+sh), (0, 200, 0), 2)
 
-    # Ring boundary lines (full width of stack)
-    for p in consensus_peaks:
+    for p in confirmed_peaks:
         yy = sy + int(p)
         cv2.line(out, (sx, yy), (sx+sw, yy), (0, 255, 80), 2)
 
-    # Count text — shadow + cyan
     cv2.putText(out, str(ring_count), (12, 70),
                 cv2.FONT_HERSHEY_SIMPLEX, 2.4, (0,0,0), 7, cv2.LINE_AA)
     cv2.putText(out, str(ring_count), (12, 70),
@@ -320,53 +236,60 @@ def encode_jpg(img, quality=88):
 
 
 # ─────────────────────────────────────────────
-# MAIN PIPELINE
+# MAIN PIPELINE — requires top_frac / bottom_frac / x_frac from the user's taps
 # ─────────────────────────────────────────────
-def process_image(path):
+def process_image(path, top_frac, bottom_frac, x_frac):
     t0 = time.time()
 
     img = cv2.imread(path)
     if img is None:
         raise ValueError("Could not read image. Upload a valid JPG/PNG.")
 
-    img      = resize_image(img)
+    img, scale = resize_image(img)
+    h, w = img.shape[:2]
     gray     = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
     enhanced = enhance_contrast(gray)
 
     blur_score = check_blur(gray)
     brightness = check_brightness(gray)
 
-    # 1. Smart stack detection
-    stack_box, reliable, area_frac = detect_best_stack(gray, img)
-    glare = check_glare(gray, stack_box)
+    top_y    = int(top_frac * h)
+    bottom_y = int(bottom_frac * h)
+    if bottom_y <= top_y + 20:
+        raise ValueError("Bottom tap must be clearly below the top tap.")
+    center_x = int(x_frac * w)
+    axis_h   = bottom_y - top_y
+    axis_w   = max(20, int(axis_h * Config.AXIS_HALF_WIDTH_FRAC * 2))
+    axis_x   = max(0, center_x - axis_w // 2)
+    axis_w   = min(axis_w, w - axis_x)
+    axis_box = (axis_x, top_y, axis_w, axis_h)
 
-    # 2. Multi-strip voting for consensus ring positions
-    consensus_peaks, strip_boxes = multi_strip_vote(enhanced, stack_box)
+    glare = check_glare(gray, axis_box)
 
-    # 3. Gap validation
-    filtered_peaks, consistency = validate_gaps(consensus_peaks)
+    confirmed_peaks, rejected_count = multi_strip_vote(enhanced, axis_box)
+    filtered_peaks, consistency = validate_gaps(confirmed_peaks)
     ring_count  = count_rings(filtered_peaks)
     confidence  = compute_confidence(consistency, blur_score, brightness,
-                                     len(filtered_peaks), reliable)
+                                      len(filtered_peaks), rejected_count)
     elapsed     = round(time.time() - t0, 2)
 
-    # 4. Annotate full image
-    annotated = annotate(img, stack_box, filtered_peaks, ring_count, reliable)
+    annotated = annotate(img, axis_box, filtered_peaks, ring_count)
 
-    # 5. Cropped stack image (tight crop for verification)
-    sx, sy, sw, sh = stack_box
-    crop = img[sy:sy+sh, sx:sx+sw].copy()
-    # Draw ring lines on crop too
+    sx, sy, sw, sh = axis_box
+    pad_x = int(sw * 1.5)
+    cx0, cx1 = max(0, sx - pad_x), min(w, sx + sw + pad_x)
+    crop = img[sy:sy+sh, cx0:cx1].copy()
+    rel_x = sx - cx0
     for p in filtered_peaks:
-        cv2.line(crop, (0, int(p)), (sw, int(p)), (0,255,80), 2)
+        cv2.line(crop, (0, int(p)), (crop.shape[1], int(p)), (0,255,80), 2)
+    cv2.rectangle(crop, (rel_x, 0), (rel_x+sw, sh), (0, 200, 0), 2)
     cv2.putText(crop, str(ring_count), (6, 50),
                 cv2.FONT_HERSHEY_SIMPLEX, 1.8, (0,0,0), 5, cv2.LINE_AA)
     cv2.putText(crop, str(ring_count), (6, 50),
                 cv2.FONT_HERSHEY_SIMPLEX, 1.8, (0,255,255), 2, cv2.LINE_AA)
 
-    logger.info(f"rings={ring_count} conf={confidence} "
-                f"peaks={len(filtered_peaks)} blur={blur_score:.1f} "
-                f"elapsed={elapsed}s")
+    logger.info(f"rings={ring_count} conf={confidence} peaks={len(filtered_peaks)} "
+                f"rejected={rejected_count} blur={blur_score:.1f} elapsed={elapsed}s")
 
     return {
         "ring_count":       ring_count,
@@ -375,10 +298,10 @@ def process_image(path):
         "blur_score":       round(blur_score, 1),
         "brightness":       round(brightness, 1),
         "glare":            round(glare * 100, 1),
-        "box_reliable":     reliable,
+        "rejected_peaks":   int(rejected_count),
         "elapsed":          elapsed,
         "image_data_url":   encode_jpg(annotated),
-        "crop_data_url":    encode_jpg(crop),       # tight crop
+        "crop_data_url":    encode_jpg(crop),
     }
 
 
@@ -401,10 +324,20 @@ def count():
     if ext not in {".jpg", ".jpeg", ".png", ".webp"}:
         return jsonify({"error": "Use JPG or PNG"}), 400
 
-    path = os.path.join(UPLOAD_DIR, f"ring_{os.getpid()}{ext}")
+    try:
+        top_frac    = float(request.form.get("top_frac", ""))
+        bottom_frac = float(request.form.get("bottom_frac", ""))
+        x_frac      = float(request.form.get("x_frac", "0.5"))
+    except (TypeError, ValueError):
+        return jsonify({"error": "Missing tap coordinates. Tap the top and bottom of the stack first."}), 400
+
+    if not (0 <= top_frac < bottom_frac <= 1):
+        return jsonify({"error": "Invalid tap positions. Tap top of stack, then bottom of stack."}), 400
+
+    path = os.path.join(UPLOAD_DIR, f"ring_{os.getpid()}_{int(time.time()*1000)}{ext}")
     try:
         file.save(path)
-        return jsonify(process_image(path))
+        return jsonify(process_image(path, top_frac, bottom_frac, x_frac))
     except Exception as e:
         logger.error(e)
         return jsonify({"error": str(e)}), 500
@@ -420,7 +353,7 @@ def too_large(_):
 
 @app.route("/status")
 def status():
-    return jsonify({"status": "ok", "version": "3.0"})
+    return jsonify({"status": "ok", "version": "4.0-manual-axis"})
 
 
 if __name__ == "__main__":
