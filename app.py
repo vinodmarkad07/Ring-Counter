@@ -26,8 +26,52 @@ Why this version exists:
 import os, base64, tempfile, logging, time
 import cv2
 import numpy as np
-from scipy.signal import find_peaks
 from flask import Flask, request, render_template, jsonify
+
+
+# Pure numpy replacement for scipy.signal.find_peaks
+# (removes scipy dependency so Vercel deploys reliably)
+def find_peaks(x, prominence=0.0, distance=1):
+    x = np.asarray(x, dtype=float)
+    n = len(x)
+    if n < 3:
+        return np.array([], dtype=int), {}
+    # Local maxima
+    peaks = [i for i in range(1, n-1) if x[i] > x[i-1] and x[i] > x[i+1]]
+    peaks = np.array(peaks, dtype=int)
+    if len(peaks) == 0:
+        return peaks, {}
+    # Distance filter (keep highest in each window)
+    if distance > 1 and len(peaks) > 1:
+        keep = np.ones(len(peaks), dtype=bool)
+        for i in range(len(peaks)):
+            if not keep[i]:
+                continue
+            for j in range(i+1, len(peaks)):
+                if peaks[j] - peaks[i] < distance:
+                    if x[peaks[j]] >= x[peaks[i]]:
+                        keep[i] = False; break
+                    else:
+                        keep[j] = False
+                else:
+                    break
+        peaks = peaks[keep]
+    # Prominence filter
+    if prominence > 0 and len(peaks) > 0:
+        kept = []
+        for p in peaks:
+            lm = x[p]
+            for i in range(p-1, -1, -1):
+                if x[i] < lm: lm = x[i]
+                if x[i] > x[p]: break
+            rm = x[p]
+            for i in range(p+1, n):
+                if x[i] < rm: rm = x[i]
+                if x[i] > x[p]: break
+            if x[p] - max(lm, rm) >= prominence:
+                kept.append(p)
+        peaks = np.array(kept, dtype=int)
+    return peaks, {}
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
