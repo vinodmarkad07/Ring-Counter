@@ -1,10 +1,23 @@
-uploads/*.jpg
-uploads/*.jpeg
-uploads/*.png
-outputs/*.jpg
-!uploads/.gitkeep
-!outputs/.gitkeep
+# Python-generated files
 __pycache__/
-*.pyc
+*.py[oc]
+build/
+dist/
+wheels/
+*.egg-info
+
+# Virtual environments
+.venv
+.venv/
+venv/
+.pytest_cache/
 .env
 .DS_Store
+database/*.db
+database/*.db-*
+results/*
+!results/.gitkeep
+weights/*.pt
+weights/*.onnx
+uploads/
+*.log

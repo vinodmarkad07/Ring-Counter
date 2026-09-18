@@ -1,4 +1,4 @@
-Flask>=3.0.3
-opencv-python-headless>=4.10.0.84
-numpy>=1.26.4
-gunicorn>=22.0.0
+Flask>=3.0.3,<4
+gunicorn>=22.0.0,<24
+numpy>=1.26.4,<3
+opencv-python-headless>=4.10.0.84,<5.1
