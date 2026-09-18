@@ -3,685 +3,1025 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
-<title>RingCount AI v4</title>
+<title>RingCount — Ring Stack Counter</title>
 <style>
+/* ══════════════════════════════════════════
+   TOKENS
+══════════════════════════════════════════ */
 :root{
-  --bg:#080c12;--bg2:#0d1117;--surf:#13181f;--surf2:#1a2030;--surf3:#1f2736;
-  --bdr:#2a3244;--bdr2:#3a4560;
-  --txt:#e8eef8;--txt2:#a0aec0;--txt3:#64748b;
-  --blue:#3b82f6;--blue2:#60a5fa;--blue-g:rgba(59,130,246,.22);
-  --purple:#8b5cf6;--green:#10b981;--green2:#34d399;
-  --yellow:#f59e0b;--red:#ef4444;--orange:#f97316;
-  --r:14px;--r2:20px;
+  --bg:       #0a0e17;
+  --card:     #111827;
+  --card2:    #1a2235;
+  --card3:    #1e2a3e;
+  --bdr:      #263147;
+  --bdr2:     #344060;
+  --txt:      #f0f4ff;
+  --txt2:     #8fa3c8;
+  --txt3:     #4a6080;
+  --blue:     #4f8ef7;
+  --blue2:    #7eb3ff;
+  --indigo:   #7c6af7;
+  --green:    #22d3a0;
+  --green2:   #4eeac0;
+  --amber:    #f6a020;
+  --red:      #f04060;
+  --cyan:     #00f5d4;
+  --r:        12px;
+  --r2:       18px;
+  --shadow:   0 8px 32px rgba(0,0,0,.55);
 }
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
-html{height:100%;scroll-behavior:smooth}
-body{min-height:100%;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;
-  background:var(--bg);color:var(--txt);-webkit-font-smoothing:antialiased}
-.bg-glow{position:fixed;inset:0;pointer-events:none;z-index:0;
-  background:radial-gradient(ellipse 60% 40% at 20% 10%,rgba(59,130,246,.07) 0%,transparent 70%),
-             radial-gradient(ellipse 40% 30% at 80% 80%,rgba(139,92,246,.06) 0%,transparent 70%)}
-.page{position:relative;z-index:1;min-height:100vh;display:flex;flex-direction:column;
-  align-items:center;padding:0 16px 60px}
+html{height:100%;-webkit-tap-highlight-color:transparent}
+body{
+  min-height:100%;
+  font-family:-apple-system,BlinkMacSystemFont,"SF Pro Display","Segoe UI",Roboto,Arial,sans-serif;
+  background:var(--bg);
+  color:var(--txt);
+  -webkit-font-smoothing:antialiased;
+}
 
-.topnav{width:100%;max-width:580px;display:flex;align-items:center;
-  justify-content:space-between;padding:18px 0 0;margin-bottom:28px}
-.brand{display:flex;align-items:center;gap:10px}
-.brand-icon{width:36px;height:36px;background:linear-gradient(135deg,var(--blue),var(--purple));
-  border-radius:10px;display:flex;align-items:center;justify-content:center;
-  font-size:18px;box-shadow:0 0 24px rgba(59,130,246,.3)}
-.brand-name{font-size:17px;font-weight:800;letter-spacing:-.5px;
-  background:linear-gradient(90deg,var(--blue2),var(--purple));
-  -webkit-background-clip:text;-webkit-text-fill-color:transparent}
-.vtag{font-size:10px;font-weight:700;color:var(--green2);background:rgba(16,185,129,.12);
-  border:1px solid var(--green);padding:2px 8px;border-radius:20px;letter-spacing:.5px}
+/* MESH BACKGROUND */
+body::before{
+  content:'';position:fixed;inset:0;pointer-events:none;z-index:0;
+  background:
+    radial-gradient(ellipse 70% 50% at 15% 0%,  rgba(79,142,247,.08) 0%,transparent 65%),
+    radial-gradient(ellipse 50% 40% at 85% 100%, rgba(124,106,247,.07) 0%,transparent 65%),
+    radial-gradient(ellipse 40% 30% at 50% 50%,  rgba(34,211,160,.04) 0%,transparent 70%);
+}
 
-.hero{text-align:center;margin-bottom:24px;width:100%;max-width:580px}
-.hero h1{font-size:clamp(20px,5.5vw,28px);font-weight:800;letter-spacing:-.7px}
-.hero h1 span{background:linear-gradient(90deg,var(--blue2),var(--green2));
-  -webkit-background-clip:text;-webkit-text-fill-color:transparent}
-.hero p{color:var(--txt2);font-size:13px;margin-top:6px;line-height:1.6}
-.pills{display:flex;gap:10px;justify-content:center;margin-top:12px;flex-wrap:wrap}
-.pill{background:var(--surf);border:1px solid var(--bdr);border-radius:20px;
-  padding:4px 12px;font-size:11px;color:var(--txt2);display:flex;align-items:center;gap:4px}
-.pill b{color:var(--blue2)}
+/* ══════════════════════════════════════════
+   LAYOUT
+══════════════════════════════════════════ */
+.wrap{
+  position:relative;z-index:1;
+  max-width:520px;
+  margin:0 auto;
+  padding:0 16px 80px;
+}
 
-.card{width:100%;max-width:580px;background:var(--surf);border:1px solid var(--bdr);
-  border-radius:var(--r2);padding:20px;margin-bottom:14px;
-  box-shadow:0 4px 24px rgba(0,0,0,.5)}
-.card-title{font-size:11px;font-weight:700;color:var(--txt3);text-transform:uppercase;
-  letter-spacing:.8px;margin-bottom:14px;display:flex;align-items:center;gap:7px}
-.card-title::before{content:'';width:3px;height:13px;
-  background:linear-gradient(180deg,var(--blue),var(--purple));border-radius:2px}
+/* ══════════════════════════════════════════
+   TOP BAR
+══════════════════════════════════════════ */
+.topbar{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:20px 0 24px;
+}
+.logo{display:flex;align-items:center;gap:10px}
+.logo-ring{
+  width:38px;height:38px;
+  border-radius:50%;
+  border:3px solid transparent;
+  background:
+    linear-gradient(var(--card),var(--card)) padding-box,
+    linear-gradient(135deg,var(--blue),var(--indigo)) border-box;
+  display:flex;align-items:center;justify-content:center;
+  font-size:18px;
+  box-shadow:0 0 20px rgba(79,142,247,.3);
+}
+.logo-name{
+  font-size:18px;font-weight:800;letter-spacing:-.5px;
+  background:linear-gradient(90deg,var(--blue2),var(--indigo));
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;
+}
+.logo-sub{font-size:11px;color:var(--txt3);font-weight:500;margin-top:1px}
 
-.capture-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
-.cbtn{position:relative;border:none;border-radius:var(--r);padding:20px 12px;
-  cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:7px;
-  transition:transform .15s,box-shadow .15s;overflow:hidden}
-.cbtn:active{transform:scale(.97)}
-.cbtn input[type=file]{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%}
-.cbtn .ic{font-size:32px;filter:drop-shadow(0 2px 8px rgba(0,0,0,.4))}
-.cbtn .lb{font-size:14px;font-weight:700;color:#fff}
-.cbtn .sb{font-size:11px;color:rgba(255,255,255,.75)}
-.cbtn.take{background:linear-gradient(135deg,#1d4ed8,#3b82f6);
-  box-shadow:0 4px 20px rgba(59,130,246,.35)}
-.cbtn.choose{background:linear-gradient(135deg,#5b21b6,#8b5cf6);
-  box-shadow:0 4px 20px rgba(139,92,246,.35)}
+/* ══════════════════════════════════════════
+   CARD
+══════════════════════════════════════════ */
+.card{
+  background:var(--card);
+  border:1px solid var(--bdr);
+  border-radius:var(--r2);
+  padding:20px;
+  margin-bottom:12px;
+  box-shadow:var(--shadow);
+}
+.section-label{
+  font-size:10px;font-weight:700;
+  color:var(--txt3);
+  text-transform:uppercase;letter-spacing:1px;
+  margin-bottom:14px;
+  display:flex;align-items:center;gap:8px;
+}
+.section-label::after{
+  content:'';flex:1;height:1px;background:var(--bdr);
+}
 
-.drag-zone{margin-top:12px;border:2px dashed var(--bdr2);border-radius:var(--r);
-  padding:14px;text-align:center;color:var(--txt3);font-size:12px;
-  transition:border-color .2s,background .2s}
-.drag-zone.over{border-color:var(--blue);background:var(--blue-g);color:var(--blue2)}
+/* ══════════════════════════════════════════
+   PHOTO BUTTONS
+══════════════════════════════════════════ */
+.photo-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px}
+.photo-btn{
+  position:relative;overflow:hidden;
+  border:none;border-radius:var(--r);
+  padding:18px 10px 14px;
+  cursor:pointer;
+  display:flex;flex-direction:column;align-items:center;gap:6px;
+  transition:transform .13s,box-shadow .13s;
+}
+.photo-btn:active{transform:scale(.96)}
+.photo-btn input[type=file]{
+  position:absolute;inset:0;opacity:0;cursor:pointer;
+}
+.photo-btn .p-icon{font-size:26px}
+.photo-btn .p-label{font-size:13px;font-weight:700;color:#fff}
+.photo-btn .p-sub{font-size:10px;color:rgba(255,255,255,.65)}
+.btn-camera{
+  background:linear-gradient(145deg,#1a40a0,#4f8ef7);
+  box-shadow:0 4px 18px rgba(79,142,247,.3);
+}
+.btn-gallery{
+  background:linear-gradient(145deg,#4a1fa8,#7c6af7);
+  box-shadow:0 4px 18px rgba(124,106,247,.3);
+}
 
-#prev-sec{display:none}
-.prev-hdr{display:flex;align-items:center;justify-content:space-between;margin:14px 0 8px}
-.prev-hdr span{font-size:13px;font-weight:600;color:var(--txt2)}
-.tag{font-size:11px;font-weight:700;padding:3px 10px;border-radius:20px;
-  background:var(--surf2);border:1px solid var(--bdr);color:var(--txt2)}
-.tag.g{background:rgba(16,185,129,.12);border-color:var(--green);color:var(--green2)}
-.img-wrap{border-radius:var(--r);overflow:hidden;border:1px solid var(--bdr);position:relative}
-.img-wrap img{width:100%;display:block;max-height:320px;object-fit:contain;background:#000}
-.src-badge{position:absolute;top:8px;left:8px;background:rgba(0,0,0,.7);
-  backdrop-filter:blur(6px);color:#fff;font-size:11px;font-weight:600;
-  padding:4px 10px;border-radius:20px}
+/* ══════════════════════════════════════════
+   TAP CANVAS SECTION
+══════════════════════════════════════════ */
+#tap-section{display:none}
+.tap-guide{
+  background:rgba(79,142,247,.08);
+  border:1px solid rgba(79,142,247,.25);
+  border-radius:var(--r);
+  padding:11px 14px;
+  margin-bottom:10px;
+  font-size:12.5px;
+  color:var(--blue2);
+  line-height:1.55;
+}
+.tap-guide b{color:var(--txt)}
+.tap-steps{
+  display:flex;gap:6px;
+  margin-bottom:10px;
+}
+.tap-step{
+  flex:1;
+  background:var(--card2);
+  border:1px solid var(--bdr);
+  border-radius:var(--r);
+  padding:9px 8px;
+  text-align:center;
+  font-size:11px;
+  color:var(--txt2);
+  transition:border-color .2s,background .2s;
+}
+.tap-step .ts-num{
+  width:20px;height:20px;
+  background:var(--bdr2);
+  border-radius:50%;
+  display:inline-flex;align-items:center;justify-content:center;
+  font-size:11px;font-weight:800;
+  margin-bottom:5px;color:var(--txt);
+}
+.tap-step.done{background:rgba(34,211,160,.1);border-color:var(--green)}
+.tap-step.done .ts-num{background:var(--green);color:#012a1f}
+.tap-step.active{border-color:var(--blue)}
 
-.act-row{display:grid;grid-template-columns:1fr auto;gap:10px;margin-top:12px}
-.btn{border:none;border-radius:10px;font-size:15px;font-weight:700;cursor:pointer;
-  padding:14px 20px;transition:transform .12s,filter .12s,opacity .2s;
-  display:flex;align-items:center;justify-content:center;gap:7px}
-.btn:active{transform:scale(.97)}
-.btn:disabled{opacity:.4;cursor:not-allowed;transform:none}
-.btn-count{background:linear-gradient(90deg,var(--green),#059669);color:#fff;
-  box-shadow:0 4px 16px rgba(16,185,129,.3)}
-.btn-count:hover:not(:disabled){filter:brightness(1.1)}
-.btn-retry{background:var(--surf2);border:1px solid var(--bdr);color:var(--txt2);
-  font-size:13px;padding:14px 16px}
+.canvas-outer{
+  border-radius:var(--r);
+  overflow:hidden;
+  border:2px solid var(--bdr2);
+  position:relative;
+  cursor:crosshair;
+  touch-action:none;
+}
+#tap-canvas{display:block;width:100%;height:auto}
+.canvas-hint{
+  position:absolute;bottom:0;left:0;right:0;
+  background:rgba(10,14,23,.75);
+  backdrop-filter:blur(4px);
+  font-size:12px;color:var(--txt2);
+  padding:8px 12px;text-align:center;
+  pointer-events:none;
+}
 
-/* AXIS TAP STEP */
-#axis-sec{display:none}
-.axis-instructions{font-size:13px;color:var(--txt2);line-height:1.6;margin-bottom:10px;
-  background:rgba(59,130,246,.08);border:1px solid rgba(59,130,246,.25);
-  border-radius:10px;padding:12px 14px}
-.axis-instructions b{color:var(--blue2)}
-.axis-wrap{position:relative;border-radius:var(--r);overflow:hidden;
-  border:1px solid var(--bdr);cursor:crosshair;touch-action:none;user-select:none}
-.axis-wrap img{width:100%;display:block;pointer-events:none}
-.axis-svg{position:absolute;inset:0;width:100%;height:100%;pointer-events:none}
-.axis-step-badge{position:absolute;top:8px;left:8px;background:rgba(0,0,0,.75);
-  backdrop-filter:blur(6px);color:#fff;font-size:12px;font-weight:700;
-  padding:5px 12px;border-radius:20px;z-index:2}
-.axis-reset{position:absolute;top:8px;right:8px;background:rgba(0,0,0,.75);
-  backdrop-filter:blur(6px);color:#fff;font-size:11px;font-weight:700;
-  padding:5px 10px;border-radius:20px;border:none;cursor:pointer;z-index:2}
+/* ══════════════════════════════════════════
+   THICKNESS INPUT
+══════════════════════════════════════════ */
+.thickness-row{
+  display:flex;align-items:center;gap:10px;
+  margin-top:12px;
+}
+.thickness-row label{
+  font-size:12px;font-weight:600;color:var(--txt2);
+  white-space:nowrap;
+}
+.thick-input{
+  flex:1;
+  background:var(--card2);
+  border:1px solid var(--bdr2);
+  border-radius:8px;
+  padding:10px 12px;
+  font-size:14px;font-weight:700;
+  color:var(--txt);
+  outline:none;
+  transition:border-color .2s;
+}
+.thick-input:focus{border-color:var(--blue)}
+.thick-input::placeholder{color:var(--txt3);font-weight:400}
+.thick-unit{
+  font-size:12px;font-weight:700;
+  color:var(--txt3);
+  background:var(--card3);
+  border:1px solid var(--bdr);
+  border-radius:8px;
+  padding:10px 12px;
+}
 
-.status-bar{display:none;align-items:center;gap:10px;background:var(--surf2);
-  border:1px solid var(--bdr);border-radius:10px;padding:11px 14px;
-  margin-top:12px;font-size:13px;color:var(--txt2)}
-.status-bar.show{display:flex}
-.spinner{width:15px;height:15px;border:2px solid var(--bdr2);
-  border-top-color:var(--blue);border-radius:50%;
-  animation:spin .7s linear infinite;flex-shrink:0}
+/* ══════════════════════════════════════════
+   ACTION BUTTONS
+══════════════════════════════════════════ */
+.action-row{display:flex;gap:8px;margin-top:12px}
+.btn{
+  border:none;border-radius:var(--r);
+  font-size:14px;font-weight:700;
+  cursor:pointer;
+  padding:13px 18px;
+  display:flex;align-items:center;justify-content:center;gap:7px;
+  transition:transform .12s,filter .12s,opacity .2s;
+  flex:1;
+}
+.btn:active{transform:scale(.96)}
+.btn:disabled{opacity:.38;cursor:not-allowed;transform:none}
+.btn-primary{
+  background:linear-gradient(90deg,var(--green),#16a87e);
+  color:#01231a;
+  box-shadow:0 4px 16px rgba(34,211,160,.28);
+}
+.btn-primary:hover:not(:disabled){filter:brightness(1.08)}
+.btn-secondary{
+  background:var(--card2);
+  border:1px solid var(--bdr2);
+  color:var(--txt2);
+  flex:0;padding:13px 14px;
+}
+.btn-ghost{
+  background:transparent;
+  border:1px solid var(--bdr);
+  color:var(--txt3);
+  font-size:12px;
+  width:100%;margin-top:8px;
+}
+
+/* ══════════════════════════════════════════
+   STATUS / ERROR
+══════════════════════════════════════════ */
+.status-row{
+  display:none;align-items:center;gap:10px;
+  background:var(--card2);border:1px solid var(--bdr);
+  border-radius:var(--r);padding:11px 14px;
+  margin-top:10px;font-size:13px;color:var(--txt2);
+}
+.status-row.show{display:flex}
+.spin{
+  width:14px;height:14px;
+  border:2px solid var(--bdr2);
+  border-top-color:var(--blue);
+  border-radius:50%;
+  animation:spin .7s linear infinite;flex-shrink:0;
+}
 @keyframes spin{to{transform:rotate(360deg)}}
-.prog-track{flex:1;height:3px;background:var(--bdr);border-radius:2px;overflow:hidden}
-.prog-fill{height:100%;width:0%;border-radius:2px;
-  background:linear-gradient(90deg,var(--blue),var(--green));transition:width .4s ease}
-.err-bar{display:none;background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.35);
-  border-radius:10px;padding:11px 14px;margin-top:12px;font-size:13px;color:var(--red)}
-.err-bar.show{display:block}
+.pbar{flex:1;height:3px;background:var(--bdr);border-radius:2px;overflow:hidden}
+.pbar-fill{
+  height:100%;width:0%;border-radius:2px;
+  background:linear-gradient(90deg,var(--blue),var(--green));
+  transition:width .4s ease;
+}
+.err-row{
+  display:none;
+  background:rgba(240,64,96,.1);
+  border:1px solid rgba(240,64,96,.3);
+  border-radius:var(--r);padding:11px 14px;
+  margin-top:10px;font-size:13px;color:var(--red);
+}
+.err-row.show{display:block}
 
+/* ══════════════════════════════════════════
+   RESULT CARD
+══════════════════════════════════════════ */
 #result-card{display:none}
 
-.tabs{display:flex;gap:2px;background:var(--surf2);border-radius:10px;
-  padding:3px;margin-bottom:12px}
-.tab-btn{flex:1;border:none;background:transparent;color:var(--txt2);
-  padding:9px 12px;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;
-  transition:background .2s,color .2s}
-.tab-btn.active{background:var(--surf3);color:var(--txt);
-  box-shadow:0 1px 4px rgba(0,0,0,.4)}
+/* View tabs */
+.view-tabs{
+  display:flex;gap:2px;
+  background:var(--card2);
+  border-radius:10px;padding:3px;
+  margin-bottom:12px;
+}
+.vtab{
+  flex:1;border:none;background:transparent;
+  color:var(--txt2);padding:8px;border-radius:8px;
+  font-size:12px;font-weight:600;cursor:pointer;
+  transition:background .2s,color .2s;
+}
+.vtab.on{background:var(--card3);color:var(--txt);box-shadow:0 1px 4px rgba(0,0,0,.4)}
 
-.res-img-wrap{border-radius:var(--r);overflow:hidden;border:1px solid var(--bdr);position:relative}
-.res-img-wrap img{width:100%;display:block}
-.res-overlay{position:absolute;bottom:0;left:0;right:0;
-  background:linear-gradient(transparent,rgba(0,0,0,.85));
-  padding:32px 16px 14px;display:flex;align-items:flex-end;justify-content:space-between}
-.cnt-wrap{display:flex;align-items:baseline;gap:6px}
-.cnt-num{font-size:64px;font-weight:900;line-height:1;color:#00ffcc;
-  text-shadow:0 0 20px rgba(0,255,200,.6),0 2px 8px rgba(0,0,0,.8);
-  font-variant-numeric:tabular-nums}
-.cnt-lbl{font-size:16px;font-weight:600;color:rgba(255,255,255,.7);padding-bottom:8px}
-.conf-badge{padding:5px 14px;border-radius:20px;font-size:12px;font-weight:800;
-  letter-spacing:.6px;text-transform:uppercase}
-.conf-High{background:rgba(16,185,129,.25);color:var(--green2);border:1px solid var(--green)}
-.conf-Medium{background:rgba(245,158,11,.2);color:#fbbf24;border:1px solid var(--yellow)}
-.conf-Low{background:rgba(239,68,68,.2);color:#f87171;border:1px solid var(--red)}
+/* Image result */
+.res-img-box{
+  border-radius:var(--r);overflow:hidden;
+  border:1px solid var(--bdr);position:relative;
+}
+.res-img-box img{width:100%;display:block}
+.res-overlay{
+  position:absolute;bottom:0;left:0;right:0;
+  background:linear-gradient(transparent,rgba(5,10,20,.9));
+  padding:36px 16px 14px;
+  display:flex;align-items:flex-end;justify-content:space-between;
+}
+.count-block{display:flex;align-items:baseline;gap:5px}
+.big-num{
+  font-size:62px;font-weight:900;line-height:1;
+  color:var(--cyan);
+  text-shadow:0 0 28px rgba(0,245,212,.5),0 2px 8px rgba(0,0,0,.8);
+  font-variant-numeric:tabular-nums;
+}
+.count-label{font-size:15px;font-weight:600;color:rgba(255,255,255,.65);padding-bottom:6px}
+.conf-pill{
+  padding:5px 13px;border-radius:20px;
+  font-size:11px;font-weight:800;
+  letter-spacing:.5px;text-transform:uppercase;
+}
+.c-High  {background:rgba(34,211,160,.2);color:var(--green2);border:1px solid var(--green)}
+.c-Medium{background:rgba(246,160,32,.18);color:#fbbf24;border:1px solid var(--amber)}
+.c-Low   {background:rgba(240,64,96,.18);color:#f87171;border:1px solid var(--red)}
 
-.legend{display:flex;gap:16px;flex-wrap:wrap;font-size:11px;color:var(--txt3);
-  margin-top:10px;padding:0 2px}
-.leg-item{display:flex;align-items:center;gap:5px}
-.leg-dot{width:14px;height:4px;border-radius:2px}
-.ld-g{background:var(--green)}
-.ld-b{background:var(--blue)}
-.ld-o{background:var(--orange)}
+/* Legend */
+.legend{display:flex;gap:14px;flex-wrap:wrap;font-size:11px;color:var(--txt3);margin-top:9px}
+.leg{display:flex;align-items:center;gap:5px}
+.leg-line{width:14px;height:3px;border-radius:2px}
 
-.metrics{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:14px}
-.mbox{background:var(--surf2);border:1px solid var(--bdr);border-radius:10px;padding:12px 14px}
-.m-lbl{font-size:10px;font-weight:700;color:var(--txt3);text-transform:uppercase;letter-spacing:.6px}
-.m-val{font-size:22px;font-weight:800;margin-top:2px}
-.m-bar{height:3px;background:var(--bdr);border-radius:2px;margin-top:8px;overflow:hidden}
-.m-bar-fill{height:100%;border-radius:2px;transition:width .8s cubic-bezier(.4,0,.2,1)}
+/* ══════════════════════════════════════════
+   STACK HEIGHT RESULT BOX
+══════════════════════════════════════════ */
+.height-box{
+  background:linear-gradient(135deg,rgba(34,211,160,.1),rgba(79,142,247,.08));
+  border:1px solid rgba(34,211,160,.3);
+  border-radius:var(--r);
+  padding:14px 16px;
+  margin-top:12px;
+  display:none;
+}
+.height-box.show{display:block}
+.height-box .hb-label{font-size:11px;font-weight:700;color:var(--green);
+  text-transform:uppercase;letter-spacing:.6px;margin-bottom:6px}
+.height-box .hb-row{display:flex;align-items:baseline;gap:8px;flex-wrap:wrap}
+.height-box .hb-num{font-size:32px;font-weight:900;color:var(--cyan)}
+.height-box .hb-unit{font-size:14px;color:var(--txt2);font-weight:600}
+.height-box .hb-sub{font-size:11px;color:var(--txt3);margin-top:4px}
 
-.tips-card{display:none;margin-top:12px;background:rgba(59,130,246,.07);
-  border:1px solid rgba(59,130,246,.22);border-radius:10px;padding:14px 16px}
-.tips-card.show{display:block}
-.tips-title{font-size:11px;font-weight:800;color:var(--blue2);text-transform:uppercase;
-  letter-spacing:.6px;margin-bottom:8px}
+/* ══════════════════════════════════════════
+   METRICS
+══════════════════════════════════════════ */
+.metrics-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:12px}
+.met-box{
+  background:var(--card2);border:1px solid var(--bdr);
+  border-radius:var(--r);padding:12px 13px;
+}
+.met-label{font-size:10px;font-weight:700;color:var(--txt3);
+  text-transform:uppercase;letter-spacing:.5px}
+.met-val{font-size:22px;font-weight:800;margin-top:2px}
+.met-bar{height:3px;background:var(--bdr);border-radius:2px;margin-top:8px;overflow:hidden}
+.met-bar-fill{height:100%;border-radius:2px;transition:width .9s cubic-bezier(.4,0,.2,1)}
+
+/* ══════════════════════════════════════════
+   TIPS
+══════════════════════════════════════════ */
+.tips-box{
+  display:none;margin-top:10px;
+  background:rgba(79,142,247,.07);
+  border:1px solid rgba(79,142,247,.2);
+  border-radius:var(--r);padding:13px 15px;
+}
+.tips-box.show{display:block}
+.tips-title{font-size:10px;font-weight:800;color:var(--blue2);
+  text-transform:uppercase;letter-spacing:.6px;margin-bottom:8px}
 .tips-list{list-style:none}
 .tips-list li{font-size:12px;color:var(--txt2);padding:3px 0;
   display:flex;align-items:flex-start;gap:6px}
-.tips-list li::before{content:"→";color:var(--blue);flex-shrink:0}
+.tips-list li::before{content:"›";color:var(--blue);font-size:16px;line-height:1.2;flex-shrink:0}
 
-/* LOW CONFIDENCE WARNING (explicit, honest — not hidden in metrics) */
-.low-conf-warn{display:none;margin-top:12px;background:rgba(239,68,68,.08);
-  border:1px solid rgba(239,68,68,.3);border-radius:10px;padding:14px 16px}
-.low-conf-warn.show{display:block}
-.low-conf-warn .t{font-size:12px;font-weight:800;color:#f87171;text-transform:uppercase;
-  letter-spacing:.6px;margin-bottom:6px}
-.low-conf-warn p{font-size:12px;color:var(--txt2);line-height:1.6}
+/* ══════════════════════════════════════════
+   RESULT ACTIONS
+══════════════════════════════════════════ */
+.res-actions{display:flex;gap:8px;margin-top:12px;flex-wrap:wrap}
+.res-actions .btn{flex:1;min-width:110px}
+.dl-btn{
+  background:var(--card2);border:1px solid var(--bdr2);
+  color:var(--txt2);border-radius:var(--r);
+  padding:10px 14px;font-size:12px;font-weight:600;
+  cursor:pointer;display:inline-flex;align-items:center;gap:5px;
+  transition:border-color .2s,color .2s;
+}
+.dl-btn:hover{border-color:var(--blue);color:var(--blue2)}
 
-.res-actions{display:flex;gap:10px;margin-top:14px;flex-wrap:wrap}
-.res-actions .btn{flex:1;min-width:130px}
-.btn-dl{background:var(--surf2);border:1px solid var(--bdr2);color:var(--txt2);
-  border-radius:10px;padding:11px 18px;font-size:13px;font-weight:600;cursor:pointer;
-  display:inline-flex;align-items:center;gap:6px;transition:border-color .2s,color .2s}
-.btn-dl:hover{border-color:var(--blue);color:var(--blue2)}
-
+/* ══════════════════════════════════════════
+   HISTORY
+══════════════════════════════════════════ */
 #hist-card{display:none}
-.hist-list{display:flex;gap:10px;overflow-x:auto;padding-bottom:4px}
-.hist-item{flex-shrink:0;background:var(--surf2);border:1px solid var(--bdr);
-  border-radius:10px;padding:10px 14px;min-width:100px;text-align:center}
-.hi-cnt{font-size:28px;font-weight:900;color:var(--green2)}
-.hi-conf{font-size:10px;color:var(--txt3);margin-top:2px}
+.hist-scroll{display:flex;gap:8px;overflow-x:auto;padding-bottom:4px}
+.hist-item{
+  flex-shrink:0;
+  background:var(--card2);border:1px solid var(--bdr);
+  border-radius:var(--r);padding:10px 14px;min-width:90px;text-align:center;
+}
+.hi-num{font-size:28px;font-weight:900;color:var(--green2)}
+.hi-conf{font-size:10px;color:var(--txt3);margin-top:1px}
 .hi-time{font-size:10px;color:var(--txt3)}
 
-.footer{margin-top:40px;text-align:center;font-size:11px;color:var(--txt3);line-height:2}
+/* ══════════════════════════════════════════
+   FOOTER
+══════════════════════════════════════════ */
+.footer{
+  text-align:center;font-size:11px;color:var(--txt3);
+  line-height:2;margin-top:36px;
+}
 
-@media(max-width:400px){
-  .capture-grid{grid-template-columns:1fr}
-  .cnt-num{font-size:50px}
+/* ══════════════════════════════════════════
+   RESPONSIVE
+══════════════════════════════════════════ */
+@media(max-width:360px){
+  .photo-grid{grid-template-columns:1fr}
+  .big-num{font-size:50px}
+  .tap-steps{flex-direction:column}
 }
 </style>
 </head>
 <body>
-<div class="bg-glow"></div>
-<div class="page">
+<div class="wrap">
 
-  <nav class="topnav">
-    <div class="brand">
-      <div class="brand-icon">⭕</div>
-      <span class="brand-name">RingCount AI</span>
-    </div>
-    <span class="vtag">v4.0 · manual axis</span>
-  </nav>
-
-  <div class="hero">
-    <h1>Count Rings <span>Accurately</span></h1>
-    <p>Tap the stack top &amp; bottom · Multi-strip voting · Cross-strip agreement filter</p>
-    <div class="pills">
-      <div class="pill">📷 <b>Live camera</b></div>
-      <div class="pill">🖼️ <b>Gallery</b></div>
-      <div class="pill">👆 <b>Tap to mark stack</b></div>
-      <div class="pill">🗳️ <b>Vote detection</b></div>
+  <!-- TOP BAR -->
+  <div class="topbar">
+    <div class="logo">
+      <div class="logo-ring">⭕</div>
+      <div>
+        <div class="logo-name">RingCount</div>
+        <div class="logo-sub">Ring Stack Counter</div>
+      </div>
     </div>
   </div>
 
-  <!-- UPLOAD CARD -->
+  <!-- ── STEP 1: SELECT PHOTO ── -->
   <div class="card" id="upload-card">
-    <div class="card-title">Select Image Source</div>
-    <div class="capture-grid">
-      <button class="cbtn take">
+    <div class="section-label">Select Photo</div>
+    <div class="photo-grid">
+      <button class="photo-btn btn-camera">
         <input type="file" id="cameraInput" accept="image/*" capture="environment">
-        <span class="ic">📷</span>
-        <span class="lb">Take Photo</span>
-        <span class="sb">Open camera live</span>
+        <span class="p-icon">📷</span>
+        <span class="p-label">Take Photo</span>
+        <span class="p-sub">Open camera</span>
       </button>
-      <button class="cbtn choose">
+      <button class="photo-btn btn-gallery">
         <input type="file" id="galleryInput" accept="image/*">
-        <span class="ic">🖼️</span>
-        <span class="lb">Choose Photo</span>
-        <span class="sb">From gallery / files</span>
+        <span class="p-icon">🖼️</span>
+        <span class="p-label">Choose Photo</span>
+        <span class="p-sub">From gallery</span>
       </button>
     </div>
-    <div class="drag-zone" id="drag-zone">🗂️ &nbsp;Or drag &amp; drop an image here</div>
 
-    <div id="prev-sec">
-      <div class="prev-hdr">
-        <span>Selected Image</span>
-        <span class="tag g" id="size-tag">—</span>
+    <!-- ── STEP 2: TAP TOP & BOTTOM ── -->
+    <div id="tap-section">
+      <div class="section-label" style="margin-top:16px">Mark the Stack</div>
+
+      <div class="tap-guide">
+        Tap <b>top of stack</b> then <b>bottom of stack</b> on the photo below.
+        This ensures counting happens inside the correct stack only.
       </div>
-      <div class="img-wrap">
-        <img id="preview" alt="Preview">
-        <div class="src-badge" id="src-badge">📷 Camera</div>
+
+      <!-- Progress indicators -->
+      <div class="tap-steps">
+        <div class="tap-step" id="step1">
+          <div class="ts-num">1</div><br>Tap Top
+        </div>
+        <div class="tap-step" id="step2">
+          <div class="ts-num">2</div><br>Tap Bottom
+        </div>
+        <div class="tap-step" id="step3">
+          <div class="ts-num">3</div><br>Count
+        </div>
       </div>
-      <div class="act-row">
-        <button class="btn btn-count" id="markBtn">👆 &nbsp;Mark Stack &amp; Count</button>
-        <button class="btn btn-retry" id="retakeBtn">🔄 Retry</button>
+
+      <!-- Canvas -->
+      <div class="canvas-outer" id="canvas-outer">
+        <canvas id="tap-canvas"></canvas>
+        <div class="canvas-hint" id="canvas-hint">👆 Tap the TOP of the ring stack</div>
       </div>
+
+      <!-- Ring Thickness Input -->
+      <div class="thickness-row" style="margin-top:14px">
+        <label>Ring Thickness</label>
+        <input class="thick-input" type="number" id="thicknessInput"
+          placeholder="e.g. 12" min="0.1" step="0.1">
+        <div class="thick-unit">mm</div>
+      </div>
+      <div style="font-size:11px;color:var(--txt3);margin-top:5px">
+        Optional — enter ring thickness to calculate total stack height
+      </div>
+
+      <!-- Actions -->
+      <div class="action-row">
+        <button class="btn btn-primary" id="submitBtn" disabled>
+          ⚙️ Count Rings
+        </button>
+        <button class="btn btn-secondary" id="resetTapBtn" title="Reset taps">↺</button>
+        <button class="btn btn-secondary" id="retakeBtn" title="New photo">🔄</button>
+      </div>
+      <button class="btn btn-ghost" id="autoBtn">
+        ⚡ Skip marking — use auto-detect
+      </button>
+
+      <div class="status-row" id="status-row">
+        <div class="spin"></div>
+        <span id="status-txt">Processing…</span>
+        <div class="pbar"><div class="pbar-fill" id="pbar-fill"></div></div>
+      </div>
+      <div class="err-row" id="err-row"></div>
     </div>
   </div>
 
-  <!-- AXIS TAP CARD -->
-  <div class="card" id="axis-sec">
-    <div class="card-title">Mark The Stack</div>
-    <div class="axis-instructions" id="axis-instr">
-      👆 Tap the <b>top edge</b> of the stack (where the topmost ring starts).
-    </div>
-    <div class="axis-wrap" id="axis-wrap">
-      <span class="axis-step-badge" id="axis-step-badge">Step 1 of 2</span>
-      <button class="axis-reset" id="axis-reset-btn">↺ Reset taps</button>
-      <img id="axisImg" alt="Tap to mark stack">
-      <svg class="axis-svg" id="axisSvg"></svg>
-    </div>
-    <div class="act-row" style="margin-top:12px">
-      <button class="btn btn-count" id="confirmAxisBtn" disabled>⚙️ Analyse Rings</button>
-      <button class="btn btn-retry" id="backToUploadBtn">← Back</button>
-    </div>
-    <div class="status-bar" id="status-bar">
-      <div class="spinner"></div>
-      <span id="status-text">Processing…</span>
-      <div class="prog-track"><div class="prog-fill" id="prog-fill"></div></div>
-    </div>
-    <div class="err-bar" id="err-bar"></div>
-  </div>
-
-  <!-- RESULT CARD -->
+  <!-- ── RESULT CARD ── -->
   <div class="card" id="result-card">
-    <div class="card-title">Detection Result</div>
+    <div class="section-label">Result</div>
 
-    <div class="tabs">
-      <button class="tab-btn active" id="tab-full" onclick="switchTab('full')">📐 Full Image</button>
-      <button class="tab-btn" id="tab-crop" onclick="switchTab('crop')">✂️ Cropped Stack</button>
+    <!-- Tabs -->
+    <div class="view-tabs">
+      <button class="vtab on" id="tab-full" onclick="switchTab('full')">Full Image</button>
+      <button class="vtab" id="tab-crop" onclick="switchTab('crop')">Cropped Stack</button>
     </div>
 
+    <!-- Full image -->
     <div id="view-full">
-      <div class="res-img-wrap">
+      <div class="res-img-box">
         <img id="resultImg" alt="Result">
         <div class="res-overlay">
-          <div class="cnt-wrap">
-            <div class="cnt-num" id="ringCount">—</div>
-            <div class="cnt-lbl">rings</div>
+          <div class="count-block">
+            <div class="big-num" id="bigNum">—</div>
+            <div class="count-label">rings</div>
           </div>
-          <div id="confBadge" class="conf-badge"></div>
+          <div id="confPill" class="conf-pill"></div>
         </div>
       </div>
       <div class="legend">
-        <div class="leg-item"><div class="leg-dot ld-g"></div>Your marked stack region</div>
-        <div class="leg-item"><div class="leg-dot ld-g" style="background:#00ff80"></div>Ring lines</div>
+        <div class="leg"><div class="leg-line" style="background:var(--green)"></div>Stack region</div>
+        <div class="leg"><div class="leg-line" style="background:#00ff80"></div>Ring boundaries</div>
       </div>
     </div>
 
+    <!-- Cropped view -->
     <div id="view-crop" style="display:none">
-      <div class="res-img-wrap">
-        <img id="cropImg" alt="Cropped Stack">
+      <div class="res-img-box">
+        <img id="cropImg" alt="Cropped">
         <div class="res-overlay">
-          <div class="cnt-wrap">
-            <div class="cnt-num" id="ringCount2">—</div>
-            <div class="cnt-lbl">rings</div>
+          <div class="count-block">
+            <div class="big-num" id="bigNum2">—</div>
+            <div class="count-label">rings</div>
           </div>
+          <div class="conf-pill c-High" style="font-size:10px">TIGHT CROP</div>
         </div>
       </div>
-      <p style="font-size:11px;color:var(--txt3);margin-top:8px;text-align:center">
-        Cropped to your marked region — verify each green line matches a real ring seam
+      <p style="font-size:11px;color:var(--txt3);margin-top:7px;text-align:center">
+        Each green line = one ring boundary. Count the gaps between lines.
       </p>
     </div>
 
-    <div class="metrics" style="margin-top:14px">
-      <div class="mbox">
-        <div class="m-lbl">Consistency</div>
-        <div class="m-val" id="m-con">—</div>
-        <div class="m-bar"><div class="m-bar-fill" id="b-con" style="width:0%;background:var(--blue)"></div></div>
+    <!-- Stack height calculation -->
+    <div class="height-box" id="height-box">
+      <div class="hb-label">📏 Total Stack Height</div>
+      <div class="hb-row">
+        <div class="hb-num" id="hb-num">—</div>
+        <div class="hb-unit">mm</div>
+        <div class="hb-unit" style="color:var(--txt3)" id="hb-cm"></div>
       </div>
-      <div class="mbox">
-        <div class="m-lbl">Sharpness</div>
-        <div class="m-val" id="m-blur">—</div>
-        <div class="m-bar"><div class="m-bar-fill" id="b-blur" style="width:0%;background:var(--green)"></div></div>
+      <div class="hb-sub" id="hb-sub"></div>
+    </div>
+
+    <!-- Metrics -->
+    <div class="metrics-grid">
+      <div class="met-box">
+        <div class="met-label">Consistency</div>
+        <div class="met-val" id="m-con">—</div>
+        <div class="met-bar"><div class="met-bar-fill" id="b-con"
+          style="width:0%;background:var(--blue)"></div></div>
       </div>
-      <div class="mbox">
-        <div class="m-lbl">Brightness</div>
-        <div class="m-val" id="m-bright">—</div>
-        <div class="m-bar"><div class="m-bar-fill" id="b-bright" style="width:0%;background:var(--yellow)"></div></div>
+      <div class="met-box">
+        <div class="met-label">Sharpness</div>
+        <div class="met-val" id="m-blur">—</div>
+        <div class="met-bar"><div class="met-bar-fill" id="b-blur"
+          style="width:0%;background:var(--green)"></div></div>
       </div>
-      <div class="mbox">
-        <div class="m-lbl">Glare</div>
-        <div class="m-val" id="m-glare">—</div>
-        <div class="m-bar"><div class="m-bar-fill" id="b-glare" style="width:0%;background:var(--red)"></div></div>
+      <div class="met-box">
+        <div class="met-label">Brightness</div>
+        <div class="met-val" id="m-bright">—</div>
+        <div class="met-bar"><div class="met-bar-fill" id="b-bright"
+          style="width:0%;background:var(--amber)"></div></div>
+      </div>
+      <div class="met-box">
+        <div class="met-label">Glare</div>
+        <div class="met-val" id="m-glare">—</div>
+        <div class="met-bar"><div class="met-bar-fill" id="b-glare"
+          style="width:0%;background:var(--red)"></div></div>
       </div>
     </div>
 
-    <!-- Honest low-confidence warning, shown explicitly, not buried -->
-    <div class="low-conf-warn" id="low-conf-warn">
-      <div class="t">⚠ Low confidence — verify manually</div>
-      <p>The algorithm isn't confident in this count. Check the cropped image against the real stack, or recount by hand before reporting this number.</p>
-    </div>
-
-    <div class="tips-card" id="tips-card">
-      <div class="tips-title">💡 Tips to improve accuracy</div>
+    <!-- Tips -->
+    <div class="tips-box" id="tips-box">
+      <div class="tips-title">Tips to improve accuracy</div>
       <ul class="tips-list" id="tips-list"></ul>
     </div>
 
+    <!-- Actions -->
     <div class="res-actions">
-      <button class="btn btn-count" id="newPhotoBtn" style="background:linear-gradient(90deg,var(--blue),var(--purple))">📷 New Photo</button>
-      <button class="btn-dl" id="dlFullBtn">⬇️ Full</button>
-      <button class="btn-dl" id="dlCropBtn">⬇️ Crop</button>
+      <button class="btn btn-primary" id="newPhotoBtn"
+        style="background:linear-gradient(90deg,var(--blue),var(--indigo));color:#fff">
+        📷 New Photo
+      </button>
+      <button class="dl-btn" id="dlFullBtn">⬇ Full</button>
+      <button class="dl-btn" id="dlCropBtn">⬇ Crop</button>
     </div>
   </div>
 
+  <!-- ── HISTORY ── -->
   <div class="card" id="hist-card">
-    <div class="card-title">📋 Recent Counts</div>
-    <div class="hist-list" id="hist-list"></div>
+    <div class="section-label">Recent Counts</div>
+    <div class="hist-scroll" id="hist-list"></div>
   </div>
 
-  <div class="footer">RingCount AI v4 &nbsp;·&nbsp; OpenCV + Manual Axis + Multi-strip Voting<br>
-    <span style="color:var(--txt3)">© 2026</span></div>
-</div>
+  <div class="footer">
+    RingCount &nbsp;·&nbsp; Powered by OpenCV<br>
+    <span style="color:var(--txt3)">© 2026 · All rights reserved</span>
+  </div>
+
+</div><!-- /wrap -->
 
 <script>
-// ── DOM ──
-const cameraInput = document.getElementById('cameraInput');
-const galleryInput= document.getElementById('galleryInput');
-const prevSec     = document.getElementById('prev-sec');
-const previewImg  = document.getElementById('preview');
-const sizeTag     = document.getElementById('size-tag');
-const srcBadge    = document.getElementById('src-badge');
-const markBtn     = document.getElementById('markBtn');
-const retakeBtn   = document.getElementById('retakeBtn');
-const statusBar   = document.getElementById('status-bar');
-const statusText  = document.getElementById('status-text');
-const progFill    = document.getElementById('prog-fill');
-const errBar      = document.getElementById('err-bar');
-const resultCard  = document.getElementById('result-card');
-const newPhotoBtn = document.getElementById('newPhotoBtn');
-const dragZone    = document.getElementById('drag-zone');
-const histCard    = document.getElementById('hist-card');
-const histList    = document.getElementById('hist-list');
+// ══════════════════════════════════════════
+// STATE
+// ══════════════════════════════════════════
+let blob       = null;
+let imgEl      = null;
+let tapState   = 0;   // 0=none,1=top set,2=both set
+let topFrac    = null, bottomFrac = null, xFrac = null;
+let fullUrl    = null, cropUrl = null;
+const hist     = [];
 
-const axisSec       = document.getElementById('axis-sec');
-const axisImg        = document.getElementById('axisImg');
-const axisSvg         = document.getElementById('axisSvg');
-const axisWrap         = document.getElementById('axis-wrap');
-const axisInstr          = document.getElementById('axis-instr');
-const axisStepBadge       = document.getElementById('axis-step-badge');
-const axisResetBtn         = document.getElementById('axis-reset-btn');
-const confirmAxisBtn        = document.getElementById('confirmAxisBtn');
-const backToUploadBtn        = document.getElementById('backToUploadBtn');
+// ══════════════════════════════════════════
+// DOM
+// ══════════════════════════════════════════
+const cameraInput  = document.getElementById('cameraInput');
+const galleryInput = document.getElementById('galleryInput');
+const tapSection   = document.getElementById('tap-section');
+const canvas       = document.getElementById('tap-canvas');
+const ctx          = canvas.getContext('2d');
+const canvasHint   = document.getElementById('canvas-hint');
+const submitBtn    = document.getElementById('submitBtn');
+const resetTapBtn  = document.getElementById('resetTapBtn');
+const retakeBtn    = document.getElementById('retakeBtn');
+const autoBtn      = document.getElementById('autoBtn');
+const statusRow    = document.getElementById('status-row');
+const statusTxt    = document.getElementById('status-txt');
+const pbarFill     = document.getElementById('pbar-fill');
+const errRow       = document.getElementById('err-row');
+const resultCard   = document.getElementById('result-card');
+const newPhotoBtn  = document.getElementById('newPhotoBtn');
+const thickInput   = document.getElementById('thicknessInput');
 
-let blob = null, fullUrl = null, cropUrl = null;
-let tapTop = null, tapBottom = null;   // {xFrac, yFrac} each, relative to displayed image
-const history = [];
-
-// ── COMPRESS ──
-function compress(file, maxW=1200, q=0.82){
+// ══════════════════════════════════════════
+// COMPRESS IMAGE
+// ══════════════════════════════════════════
+function compress(file, maxW=1400, q=0.85){
   return new Promise((res,rej)=>{
-    const img=new Image();
-    img.onload=()=>{
-      let w=img.width,h=img.height;
+    const img = new Image();
+    img.onload = () => {
+      let w=img.width, h=img.height;
       if(w>maxW){h=Math.round(h*maxW/w);w=maxW;}
       const c=document.createElement('canvas');
       c.width=w;c.height=h;
       c.getContext('2d').drawImage(img,0,0,w,h);
       c.toBlob(b=>{
         if(!b){rej(new Error('Compression failed'));return;}
-        if(b.size>3*1024*1024) c.toBlob(res,'image/jpeg',.6);
+        if(b.size>3.5*1024*1024) c.toBlob(res,'image/jpeg',.65);
         else res(b);
       },'image/jpeg',q);
     };
-    img.onerror=()=>rej(new Error('Load failed'));
+    img.onerror=()=>rej(new Error('Could not load image'));
     img.src=URL.createObjectURL(file);
   });
 }
-function fmt(b){return b<1048576?`${(b/1024).toFixed(0)} KB`:`${(b/1048576).toFixed(1)} MB`}
 
-// ── STATUS / ERROR ──
+// ══════════════════════════════════════════
+// STATUS / ERROR
+// ══════════════════════════════════════════
 function setStatus(msg,pct=0){
-  statusText.textContent=msg;
-  progFill.style.width=pct+'%';
-  statusBar.classList.add('show');
-  errBar.classList.remove('show');
+  statusTxt.textContent=msg;
+  pbarFill.style.width=pct+'%';
+  statusRow.classList.add('show');
+  errRow.classList.remove('show');
 }
-function hideStatus(){statusBar.classList.remove('show');progFill.style.width='0%'}
-function showError(msg){errBar.textContent='⚠ '+msg;errBar.classList.add('show');statusBar.classList.remove('show')}
-function clearErr(){errBar.classList.remove('show')}
+function hideStatus(){ statusRow.classList.remove('show'); pbarFill.style.width='0%'; }
+function showError(msg){ errRow.textContent='⚠ '+msg; errRow.classList.add('show'); statusRow.classList.remove('show'); }
+function clearErr(){ errRow.classList.remove('show'); }
 
-// ── FILE HANDLE ──
-async function handleFile(file,src){
-  if(!file)return;
-  clearErr();resultCard.style.display='none';axisSec.style.display='none';
-  setStatus('Compressing…',20);
-  try{ blob=await compress(file); }
-  catch(e){hideStatus();showError(e.message);return;}
-  previewImg.src=URL.createObjectURL(blob);
-  sizeTag.textContent=fmt(blob.size);
-  srcBadge.textContent=src==='camera'?'📷 Camera':'🖼️ Gallery';
-  prevSec.style.display='block';
-  hideStatus();
+// ══════════════════════════════════════════
+// TAP STEPS UI
+// ══════════════════════════════════════════
+function updateStepUI(){
+  const s1=document.getElementById('step1');
+  const s2=document.getElementById('step2');
+  const s3=document.getElementById('step3');
+  s1.className='tap-step'+(tapState>=1?' done':'');
+  s2.className='tap-step'+(tapState>=2?' done':tapState===1?' active':'');
+  s3.className='tap-step'+(tapState>=2?' active':'');
 }
 
-cameraInput.addEventListener('change',()=>{ if(cameraInput.files[0]) handleFile(cameraInput.files[0],'camera'); });
-galleryInput.addEventListener('change',()=>{ if(galleryInput.files[0]) handleFile(galleryInput.files[0],'gallery'); });
+// ══════════════════════════════════════════
+// DRAW CANVAS
+// ══════════════════════════════════════════
+function redraw(){
+  if(!imgEl) return;
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+  ctx.drawImage(imgEl,0,0,canvas.width,canvas.height);
 
-dragZone.addEventListener('dragover',e=>{e.preventDefault();dragZone.classList.add('over')});
-dragZone.addEventListener('dragleave',()=>dragZone.classList.remove('over'));
-dragZone.addEventListener('drop',e=>{
-  e.preventDefault();dragZone.classList.remove('over');
-  const f=e.dataTransfer.files[0];
-  if(f&&f.type.startsWith('image/')) handleFile(f,'gallery');
+  if(topFrac !== null){
+    const ty = Math.round(topFrac * canvas.height);
+    // Top marker
+    ctx.strokeStyle='#4f8ef7';ctx.lineWidth=2;ctx.setLineDash([6,3]);
+    ctx.beginPath();ctx.moveTo(0,ty);ctx.lineTo(canvas.width,ty);ctx.stroke();
+    ctx.setLineDash([]);
+    // Dot
+    ctx.fillStyle='#4f8ef7';
+    ctx.beginPath();ctx.arc(xFrac*canvas.width,ty,8,0,Math.PI*2);ctx.fill();
+    ctx.fillStyle='#fff';ctx.font='bold 10px sans-serif';ctx.textAlign='center';
+    ctx.fillText('T',xFrac*canvas.width,ty+4);
+  }
+
+  if(bottomFrac !== null){
+    const by = Math.round(bottomFrac * canvas.height);
+    const ty = Math.round(topFrac * canvas.height);
+    const cx_px = xFrac*canvas.width;
+
+    // Bottom marker
+    ctx.strokeStyle='#22d3a0';ctx.lineWidth=2;ctx.setLineDash([6,3]);
+    ctx.beginPath();ctx.moveTo(0,by);ctx.lineTo(canvas.width,by);ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.fillStyle='#22d3a0';
+    ctx.beginPath();ctx.arc(cx_px,by,8,0,Math.PI*2);ctx.fill();
+    ctx.fillStyle='#fff';ctx.font='bold 10px sans-serif';ctx.textAlign='center';
+    ctx.fillText('B',cx_px,by+4);
+
+    // Shade the region
+    ctx.fillStyle='rgba(34,211,160,.07)';
+    ctx.fillRect(cx_px-canvas.width*0.22, ty, canvas.width*0.44, by-ty);
+
+    // Side lines
+    ctx.strokeStyle='rgba(34,211,160,.4)';ctx.lineWidth=1;ctx.setLineDash([4,4]);
+    ctx.strokeRect(cx_px-canvas.width*0.22, ty, canvas.width*0.44, by-ty);
+    ctx.setLineDash([]);
+  }
+}
+
+// ══════════════════════════════════════════
+// CANVAS TAP / CLICK
+// ══════════════════════════════════════════
+function getCanvasFrac(e){
+  const rect=canvas.getBoundingClientRect();
+  const src=e.touches?e.touches[0]:e;
+  return {
+    x:(src.clientX-rect.left)/rect.width,
+    y:(src.clientY-rect.top)/rect.height
+  };
+}
+
+function handleTap(e){
+  e.preventDefault();
+  if(tapState>=2) return;
+  const {x,y}=getCanvasFrac(e);
+  if(tapState===0){
+    topFrac=y; xFrac=x; tapState=1;
+    canvasHint.textContent='👆 Now tap the BOTTOM of the ring stack';
+  } else if(tapState===1){
+    if(y<=topFrac+0.05){
+      canvasHint.textContent='⚠ Bottom must be below top — tap lower';
+      return;
+    }
+    bottomFrac=y; tapState=2;
+    canvasHint.textContent='✅ Stack marked — press Count Rings';
+    submitBtn.disabled=false;
+  }
+  updateStepUI();
+  redraw();
+}
+
+canvas.addEventListener('click', handleTap);
+canvas.addEventListener('touchend', handleTap, {passive:false});
+
+// Reset taps
+resetTapBtn.addEventListener('click',()=>{
+  tapState=0;topFrac=null;bottomFrac=null;xFrac=null;
+  submitBtn.disabled=true;
+  canvasHint.textContent='👆 Tap the TOP of the ring stack';
+  updateStepUI();redraw();clearErr();
 });
+
+// ══════════════════════════════════════════
+// HANDLE FILE
+// ══════════════════════════════════════════
+async function handleFile(file){
+  if(!file) return;
+  clearErr();resultCard.style.display='none';
+  tapState=0;topFrac=null;bottomFrac=null;xFrac=null;
+  setStatus('Loading image…',15);
+
+  try{ blob = await compress(file); }
+  catch(e){ hideStatus();showError(e.message);return; }
+
+  imgEl = new Image();
+  imgEl.onload = ()=>{
+    // Size canvas to image ratio, fit in container
+    const maxW = Math.min(window.innerWidth-32, 488);
+    canvas.width  = imgEl.naturalWidth;
+    canvas.height = imgEl.naturalHeight;
+    canvas.style.width  = maxW+'px';
+    canvas.style.height = Math.round(imgEl.naturalHeight*(maxW/imgEl.naturalWidth))+'px';
+    redraw();
+    tapSection.style.display='block';
+    submitBtn.disabled=true;
+    updateStepUI();
+    canvasHint.textContent='👆 Tap the TOP of the ring stack';
+    hideStatus();
+  };
+  imgEl.src = URL.createObjectURL(blob);
+}
+
+cameraInput.addEventListener('change', ()=>{ if(cameraInput.files[0]) handleFile(cameraInput.files[0]); });
+galleryInput.addEventListener('change',()=>{ if(galleryInput.files[0]) handleFile(galleryInput.files[0]); });
 
 retakeBtn.addEventListener('click',()=>{
-  blob=null;prevSec.style.display='none';
-  resultCard.style.display='none';clearErr();
-  cameraInput.value='';galleryInput.value='';
+  blob=null;imgEl=null;tapState=0;topFrac=null;bottomFrac=null;
+  tapSection.style.display='none';
+  resultCard.style.display='none';
+  clearErr();cameraInput.value='';galleryInput.value='';
+  submitBtn.disabled=true;
 });
+
 newPhotoBtn.addEventListener('click',()=>{
-  resultCard.style.display='none';prevSec.style.display='none';axisSec.style.display='none';
-  blob=null;cameraInput.value='';galleryInput.value='';clearErr();
+  resultCard.style.display='none';
+  tapSection.style.display='none';
+  blob=null;imgEl=null;tapState=0;topFrac=null;bottomFrac=null;
+  cameraInput.value='';galleryInput.value='';clearErr();
   window.scrollTo({top:0,behavior:'smooth'});
 });
-backToUploadBtn.addEventListener('click',()=>{
-  axisSec.style.display='none';
-  prevSec.style.display='block';
-  clearErr();
-});
 
-// ── AXIS TAP STEP ──
-markBtn.addEventListener('click',()=>{
-  if(!blob)return;
-  tapTop=null;tapBottom=null;
-  axisImg.src=previewImg.src;
-  axisSec.style.display='block';
-  prevSec.style.display='none';
-  updateAxisUI();
-  axisSec.scrollIntoView({behavior:'smooth',block:'start'});
-});
+// ══════════════════════════════════════════
+// SUBMIT
+// ══════════════════════════════════════════
+async function doCount(useAuto=false){
+  if(!blob) return;
+  submitBtn.disabled=true;
 
-axisResetBtn.addEventListener('click',()=>{
-  tapTop=null;tapBottom=null;
-  updateAxisUI();
-});
-
-function getTapFrac(evt){
-  const rect=axisWrap.getBoundingClientRect();
-  const cx = (evt.touches&&evt.touches[0]) ? evt.touches[0].clientX : evt.clientX;
-  const cy = (evt.touches&&evt.touches[0]) ? evt.touches[0].clientY : evt.clientY;
-  const xFrac = Math.min(1,Math.max(0,(cx-rect.left)/rect.width));
-  const yFrac = Math.min(1,Math.max(0,(cy-rect.top)/rect.height));
-  return {xFrac,yFrac};
-}
-
-function onAxisTap(evt){
-  evt.preventDefault();
-  const p = getTapFrac(evt);
-  if(!tapTop){ tapTop=p; }
-  else if(!tapBottom){
-    if(p.yFrac<=tapTop.yFrac+0.02){ return; } // ignore taps not clearly below top
-    tapBottom=p;
-  } else {
-    // both set — re-tapping starts a new pair from the top
-    tapTop=p; tapBottom=null;
-  }
-  updateAxisUI();
-}
-axisWrap.addEventListener('click',onAxisTap);
-axisWrap.addEventListener('touchstart',onAxisTap,{passive:false});
-
-function updateAxisUI(){
-  const w=axisWrap.clientWidth, h=axisWrap.clientHeight;
-  axisSvg.setAttribute('viewBox',`0 0 ${w} ${h}`);
-  let svg='';
-  if(tapTop){
-    svg+=`<line x1="0" y1="${tapTop.yFrac*h}" x2="${w}" y2="${tapTop.yFrac*h}" stroke="#00ff80" stroke-width="2.5"/>`;
-    svg+=`<circle cx="${tapTop.xFrac*w}" cy="${tapTop.yFrac*h}" r="7" fill="#00ff80" stroke="#08120c" stroke-width="2"/>`;
-  }
-  if(tapBottom){
-    svg+=`<line x1="0" y1="${tapBottom.yFrac*h}" x2="${w}" y2="${tapBottom.yFrac*h}" stroke="#3b82f6" stroke-width="2.5"/>`;
-    svg+=`<circle cx="${tapBottom.xFrac*w}" cy="${tapBottom.yFrac*h}" r="7" fill="#3b82f6" stroke="#08120c" stroke-width="2"/>`;
-    // shaded axis band between the two taps, centered on the average x
-    const cx=((tapTop.xFrac+tapBottom.xFrac)/2)*w;
-    const bandW=Math.max(20,(tapBottom.yFrac-tapTop.yFrac)*h*0.22);
-    svg+=`<rect x="${cx-bandW}" y="${tapTop.yFrac*h}" width="${bandW*2}" height="${(tapBottom.yFrac-tapTop.yFrac)*h}" fill="rgba(16,185,129,0.15)" stroke="#10b981" stroke-width="1.5"/>`;
-  }
-  axisSvg.innerHTML=svg;
-
-  if(!tapTop){
-    axisStepBadge.textContent='Step 1 of 2';
-    axisInstr.innerHTML='👆 Tap the <b>top edge</b> of the stack (where the topmost ring starts).';
-    confirmAxisBtn.disabled=true;
-  } else if(!tapBottom){
-    axisStepBadge.textContent='Step 2 of 2';
-    axisInstr.innerHTML='👆 Now tap the <b>bottom edge</b> of the stack (where it meets the ground/pallet).';
-    confirmAxisBtn.disabled=true;
-  } else {
-    axisStepBadge.textContent='Ready';
-    axisInstr.innerHTML='✅ Stack marked. Tap anywhere to redo, or hit <b>Analyse Rings</b> below.';
-    confirmAxisBtn.disabled=false;
-  }
-}
-
-// ── SUBMIT (now sends tap fractions) ──
-confirmAxisBtn.addEventListener('click', async()=>{
-  if(!blob||!tapTop||!tapBottom)return;
-  confirmAxisBtn.disabled=true;backToUploadBtn.disabled=true;
-  setStatus('Uploading…',25);
+  setStatus('Uploading…',20);
   const fd=new FormData();
   fd.append('photo',blob,'photo.jpg');
-  fd.append('top_frac',tapTop.yFrac.toFixed(4));
-  fd.append('bottom_frac',tapBottom.yFrac.toFixed(4));
-  fd.append('x_frac',((tapTop.xFrac+tapBottom.xFrac)/2).toFixed(4));
 
-  let pct=25;
+  if(!useAuto && topFrac!==null && bottomFrac!==null){
+    fd.append('top_frac',   topFrac.toString());
+    fd.append('bottom_frac',bottomFrac.toString());
+    fd.append('x_frac',    (xFrac||0.5).toString());
+  } else {
+    // Auto: use full image height
+    fd.append('top_frac',   '0.05');
+    fd.append('bottom_frac','0.95');
+    fd.append('x_frac',     '0.5');
+  }
+
+  let pct=20;
   const tick=setInterval(()=>{
-    pct=Math.min(80,pct+7);progFill.style.width=pct+'%';
-    if(pct>40) statusText.textContent='Detecting rings…';
-    if(pct>65) statusText.textContent='Validating count…';
-  },500);
+    pct=Math.min(84,pct+9);pbarFill.style.width=pct+'%';
+    if(pct>40) statusTxt.textContent='Detecting ring gaps…';
+    if(pct>68) statusTxt.textContent='Validating count…';
+  },450);
 
   try{
-    const r=await fetch('/count',{method:'POST',body:fd});
-    const raw=await r.text();
-    clearInterval(tick);progFill.style.width='100%';
+    const r   = await fetch('/count',{method:'POST',body:fd});
+    const raw = await r.text();
+    clearInterval(tick); pbarFill.style.width='100%';
     let d;
-    try{d=JSON.parse(raw);}
-    catch{showError('Unexpected server response. Try again.');
-      confirmAxisBtn.disabled=false;backToUploadBtn.disabled=false;return;}
-    if(d.error){showError(d.error);confirmAxisBtn.disabled=false;backToUploadBtn.disabled=false;return;}
-    setTimeout(()=>{hideStatus();axisSec.style.display='none';renderResult(d);},300);
+    try{ d=JSON.parse(raw); }
+    catch{ showError('Server error — please try again.'); submitBtn.disabled=false; return; }
+    if(d.error){ showError(d.error); submitBtn.disabled=false; return; }
+    setTimeout(()=>{ hideStatus(); renderResult(d,useAuto); },300);
   }catch(err){
-    clearInterval(tick);showError('Network error: '+err.message);
+    clearInterval(tick); showError('Network error: '+err.message);
   }
-  confirmAxisBtn.disabled=false;backToUploadBtn.disabled=false;
-});
+  submitBtn.disabled=false;
+}
 
-// ── TABS ──
+submitBtn.addEventListener('click',()=>doCount(false));
+autoBtn.addEventListener('click',()=>doCount(true));
+
+// ══════════════════════════════════════════
+// TABS
+// ══════════════════════════════════════════
 function switchTab(t){
   document.getElementById('view-full').style.display = t==='full'?'block':'none';
   document.getElementById('view-crop').style.display = t==='crop'?'block':'none';
-  document.getElementById('tab-full').classList.toggle('active',t==='full');
-  document.getElementById('tab-crop').classList.toggle('active',t==='crop');
+  document.getElementById('tab-full').classList.toggle('on',t==='full');
+  document.getElementById('tab-crop').classList.toggle('on',t==='crop');
 }
 
-// ── RENDER RESULT ──
-function renderResult(d){
+// ══════════════════════════════════════════
+// RENDER RESULT
+// ══════════════════════════════════════════
+function renderResult(d, autoUsed){
   hideStatus();
   fullUrl=d.image_data_url;
   cropUrl=d.crop_data_url;
 
-  document.getElementById('resultImg').src=fullUrl;
-  document.getElementById('cropImg').src=cropUrl;
-  document.getElementById('ringCount').textContent=d.ring_count;
-  document.getElementById('ringCount2').textContent=d.ring_count;
+  document.getElementById('resultImg').src = fullUrl;
+  document.getElementById('cropImg').src   = cropUrl;
+  document.getElementById('bigNum').textContent  = d.ring_count;
+  document.getElementById('bigNum2').textContent = d.ring_count;
 
-  const badge=document.getElementById('confBadge');
-  badge.textContent=d.confidence+' confidence';
-  badge.className='conf-badge conf-'+d.confidence;
+  const pill=document.getElementById('confPill');
+  pill.textContent=d.confidence+' Confidence';
+  pill.className='conf-pill c-'+d.confidence;
 
+  // ── Stack height calculation ──
+  const thick = parseFloat(thickInput.value);
+  const hbox  = document.getElementById('height-box');
+  if(!isNaN(thick) && thick>0 && d.ring_count>0){
+    const totalMM = Math.round(d.ring_count * thick * 10) / 10;
+    const totalCM = Math.round(totalMM/10*10)/10;
+    document.getElementById('hb-num').textContent = totalMM;
+    document.getElementById('hb-cm').textContent  = `(${totalCM} cm)`;
+    document.getElementById('hb-sub').textContent =
+      `${d.ring_count} rings × ${thick} mm thickness`;
+    hbox.classList.add('show');
+  } else {
+    hbox.classList.remove('show');
+  }
+
+  // ── Metrics ──
   const cp=Math.round(d.consistency*100);
-  document.getElementById('m-con').textContent=cp+'%';
-  document.getElementById('b-con').style.width=cp+'%';
+  document.getElementById('m-con').textContent  = cp+'%';
+  document.getElementById('b-con').style.width  = cp+'%';
 
-  const bp=Math.min(100,Math.round(d.blur_score/3));
-  document.getElementById('m-blur').textContent=d.blur_score;
-  document.getElementById('b-blur').style.width=bp+'%';
+  const bp=Math.min(100,Math.round(d.blur_score/3.5));
+  document.getElementById('m-blur').textContent = d.blur_score;
+  document.getElementById('b-blur').style.width = bp+'%';
 
   const brp=Math.round(d.brightness/255*100);
-  document.getElementById('m-bright').textContent=d.brightness;
-  document.getElementById('b-bright').style.width=brp+'%';
+  document.getElementById('m-bright').textContent = d.brightness;
+  document.getElementById('b-bright').style.width = brp+'%';
 
-  document.getElementById('m-glare').textContent=d.glare+'%';
-  document.getElementById('b-glare').style.width=Math.min(100,d.glare)+'%';
+  document.getElementById('m-glare').textContent = d.glare+'%';
+  document.getElementById('b-glare').style.width  = Math.min(100,d.glare)+'%';
 
-  document.getElementById('low-conf-warn').classList.toggle('show', d.confidence==='Low');
-
+  // ── Tips ──
   const tips=[];
-  if(d.blur_score<60)  tips.push('Image blurry — hold phone steady, ensure focus');
-  if(d.glare>15)       tips.push('High glare — avoid direct light on shiny rings');
-  if(d.brightness<35)  tips.push('Too dark — move to better lighting');
-  if(d.brightness>220) tips.push('Overexposed — reduce lighting or move back');
-  if(d.consistency<0.4)tips.push('Uneven spacing detected — retake straight-on, not at an angle');
-  if(d.rejected_peaks>2)tips.push('Several ring lines were rejected as unreliable — retap the stack more tightly around just the rings (avoid background)');
-  if(d.glare>20&&d.brightness>180) tips.push('For shiny metal rings: shoot slightly from the side to reduce reflections');
+  if(autoUsed) tips.push('Tap top & bottom of stack for higher accuracy');
+  if(d.blur_score<70)  tips.push('Image blurry — hold phone still and let camera focus');
+  if(d.glare>15)       tips.push('Glare detected — shoot from a slight angle to avoid reflections');
+  if(d.brightness<35)  tips.push('Too dark — move to brighter light or use torch');
+  if(d.brightness>220) tips.push('Overexposed — reduce light or step back');
+  if(d.consistency<0.4)tips.push('Inconsistent spacing — shoot the stack straight-on, not at an angle');
 
-  const tc=document.getElementById('tips-card');
+  const tb=document.getElementById('tips-box');
   const tl=document.getElementById('tips-list');
   if(tips.length){
     tl.innerHTML=tips.map(t=>`<li>${t}</li>`).join('');
-    tc.classList.add('show');
-  }else tc.classList.remove('show');
+    tb.classList.add('show');
+  } else tb.classList.remove('show');
 
-  addHistory(d.ring_count, d.confidence);
+  addHistory(d.ring_count,d.confidence);
   switchTab('full');
   resultCard.style.display='block';
   resultCard.scrollIntoView({behavior:'smooth',block:'start'});
 }
 
-// ── DOWNLOAD ──
-function dlImg(url, name){
-  if(!url)return;
+// ══════════════════════════════════════════
+// DOWNLOAD
+// ══════════════════════════════════════════
+function dl(url,name){
+  if(!url) return;
   const a=document.createElement('a');a.href=url;a.download=name;a.click();
 }
-document.getElementById('dlFullBtn').addEventListener('click',()=>dlImg(fullUrl,`ring-full-${Date.now()}.jpg`));
-document.getElementById('dlCropBtn').addEventListener('click',()=>dlImg(cropUrl,`ring-crop-${Date.now()}.jpg`));
+document.getElementById('dlFullBtn').addEventListener('click',()=>dl(fullUrl,`ringcount-full-${Date.now()}.jpg`));
+document.getElementById('dlCropBtn').addEventListener('click',()=>dl(cropUrl,`ringcount-crop-${Date.now()}.jpg`));
 
-// ── HISTORY ──
+// ══════════════════════════════════════════
+// HISTORY
+// ══════════════════════════════════════════
 function addHistory(cnt,conf){
   const t=new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});
-  history.unshift({cnt,conf,t});
-  if(history.length>6)history.pop();
-  histList.innerHTML=history.map(h=>`
+  hist.unshift({cnt,conf,t});
+  if(hist.length>6) hist.pop();
+  const hl=document.getElementById('hist-list');
+  hl.innerHTML=hist.map(h=>`
     <div class="hist-item">
-      <div class="hi-cnt">${h.cnt}</div>
+      <div class="hi-num">${h.cnt}</div>
       <div class="hi-conf">${h.conf}</div>
       <div class="hi-time">${h.t}</div>
     </div>`).join('');
-  histCard.style.display='block';
+  document.getElementById('hist-card').style.display='block';
 }
 </script>
 </body>
