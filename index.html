@@ -1,0 +1,1126 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ring Stack Gauge</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#12151a;
+    --panel:#181c22;
+    --panel2:#1e232b;
+    --line:#2a323c;
+    --line-soft:#232830;
+    --text:#e7ebef;
+    --text-dim:#8a94a1;
+    --text-faint:#5b6470;
+    --teal:#3fd9c2;
+    --teal-dim:#245f56;
+    --amber:#e8a33d;
+    --amber-dim:#6b4f22;
+    --red:#e6636b;
+    --radius:3px;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;background:var(--bg);color:var(--text);
+    font-family:'Inter',ui-sans-serif,system-ui,sans-serif;font-size:14px;}
+  .mono{font-family:'JetBrains Mono',ui-monospace,'SF Mono',monospace;}
+  .app{max-width:1320px;margin:0 auto;padding:22px 20px 60px;}
+  header{display:flex;align-items:baseline;gap:14px;margin-bottom:18px;
+    border-bottom:1px solid var(--line);padding-bottom:14px;}
+  header h1{font-size:19px;font-weight:700;margin:0;letter-spacing:0.2px;}
+  header .tag{color:var(--text-faint);font-size:12px;font-family:'JetBrains Mono',monospace;}
+  .ruler-mark{color:var(--teal);}
+
+  main.grid{display:grid;grid-template-columns:1fr 340px;gap:18px;}
+  @media(max-width:920px){ main.grid{grid-template-columns:1fr;} }
+
+  section.canvas-panel,.card{background:var(--panel);border:1px solid var(--line);
+    border-radius:var(--radius);padding:16px;}
+  section.canvas-panel{display:flex;flex-direction:column;gap:12px;}
+
+  .upload-row{display:flex;align-items:center;gap:12px;flex-wrap:wrap;}
+  .upload-row button{background:var(--panel2);color:var(--text);border:1px solid var(--line);
+    border-radius:var(--radius);padding:7px 12px;font-size:12.5px;cursor:pointer;font-family:inherit;}
+  .upload-row button:hover{border-color:var(--teal-dim);}
+  input[type=file]{color:var(--text-dim);font-size:12.5px;max-width:100%;}
+  input[type=file]::file-selector-button{
+    background:var(--panel2);color:var(--text);border:1px solid var(--line);
+    border-radius:var(--radius);padding:6px 12px;font-size:12.5px;cursor:pointer;margin-right:10px;}
+  #imgInfo{color:var(--text-faint);font-size:12px;}
+
+  .canvas-wrap{position:relative;background:#0b0d10;border:1px solid var(--line-soft);
+    border-radius:var(--radius);min-height:180px;display:flex;align-items:center;justify-content:center;
+    overflow:hidden;}
+  #stage{display:block;width:100%;height:auto;cursor:crosshair;touch-action:none;-webkit-user-select:none;user-select:none;}
+  #emptyState{position:absolute;color:var(--text-faint);font-size:13px;text-align:center;padding:20px;
+    pointer-events:none;}
+
+  .hint{color:var(--text-faint);font-size:12px;line-height:1.5;}
+  .hint b{color:var(--text-dim);}
+
+  .controls{display:grid;grid-template-columns:repeat(5,1fr) auto;gap:14px 18px;align-items:end;}
+  @media(max-width:700px){ .controls{grid-template-columns:1fr 1fr;} }
+  .controls label{display:flex;flex-direction:column;gap:5px;font-size:11.5px;color:var(--text-dim);
+    text-transform:uppercase;letter-spacing:0.4px;}
+  .controls label span{color:var(--teal);font-size:12px;text-transform:none;letter-spacing:0;}
+  input[type=range]{accent-color:var(--teal);width:100%;}
+  .controls select{background:#0f1216;border:1px solid var(--line);color:var(--text);border-radius:var(--radius);
+    padding:7px 8px;font-size:12.5px;font-family:'Inter',sans-serif;width:100%;}
+  button{background:var(--panel2);color:var(--text);border:1px solid var(--line);
+    border-radius:var(--radius);padding:9px 14px;font-size:12.5px;cursor:pointer;font-family:inherit;
+    transition:border-color .15s;}
+  button:hover{border-color:var(--teal-dim);}
+  button.primary{background:var(--teal-dim);border-color:var(--teal);color:#eafff9;font-weight:600;}
+  button.primary:hover{background:#2c7a6e;}
+  button:disabled{opacity:.4;cursor:not-allowed;}
+
+  #profile{width:100%;height:90px;display:block;background:#0b0d10;border:1px solid var(--line-soft);
+    border-radius:var(--radius);}
+
+  .card + .card{margin-top:18px;}
+  .card h2{font-size:12px;text-transform:uppercase;letter-spacing:0.6px;color:var(--text-dim);
+    margin:0 0 12px;font-weight:600;}
+
+  .tabs{display:flex;gap:6px;margin-bottom:12px;}
+  .tab{flex:1;background:var(--panel2);border:1px solid var(--line);color:var(--text-dim);
+    padding:7px 6px;font-size:11.5px;border-radius:var(--radius);cursor:pointer;}
+  .tab.active{border-color:var(--teal);color:var(--teal);}
+  .tab-panel{display:flex;flex-direction:column;gap:10px;}
+  .tab-panel.hidden{display:none;}
+  .tab-panel label{display:flex;flex-direction:column;gap:4px;font-size:11.5px;color:var(--text-dim);}
+  .tab-panel input,.tab-panel select{
+    background:#0f1216;border:1px solid var(--line);color:var(--text);border-radius:var(--radius);
+    padding:7px 8px;font-size:13px;font-family:'JetBrains Mono',monospace;}
+  .tab-panel select{font-family:'Inter',sans-serif;}
+
+  .scale-readout{margin-top:12px;padding:10px 12px;background:#0f1216;border:1px solid var(--line-soft);
+    border-radius:var(--radius);font-size:13px;color:var(--teal);}
+  .scale-crosscheck{margin-top:6px;color:var(--text-faint);font-size:11.5px;min-height:14px;}
+
+  .ring-count{display:flex;align-items:baseline;gap:8px;margin-bottom:6px;}
+  .ring-count span{font-size:40px;font-weight:700;font-family:'JetBrains Mono',monospace;color:var(--teal);
+    line-height:1;}
+  .ring-count label{color:var(--text-dim);font-size:12px;}
+  .stack-total{color:var(--text-dim);font-size:12px;margin-bottom:10px;}
+  .stack-total b{color:var(--text);}
+
+  table{width:100%;border-collapse:collapse;font-size:12px;}
+  th{text-align:left;color:var(--text-faint);font-weight:600;text-transform:uppercase;
+    font-size:10px;letter-spacing:0.4px;padding:4px 6px;border-bottom:1px solid var(--line);}
+  td{padding:4px 6px;border-bottom:1px solid var(--line-soft);font-family:'JetBrains Mono',monospace;
+    color:var(--text-dim);}
+  tr.flag td{color:var(--red);}
+  tbody tr:hover td{color:var(--text);}
+
+  .legend{display:flex;gap:16px;font-size:11px;color:var(--text-faint);margin-top:2px;}
+  .legend span{display:inline-flex;align-items:center;gap:5px;}
+  .swatch{width:14px;height:2px;display:inline-block;}
+</style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <h1>Ring Stack <span class="ruler-mark">Gauge</span></h1>
+    <span class="tag">px&nbsp;&rarr;&nbsp;mm &middot; edge-detected ring count</span>
+  </header>
+
+  <main class="grid">
+    <section class="canvas-panel">
+      <div class="upload-row">
+        <input type="file" id="fileInputCamera" accept="image/*" capture="environment" style="display:none;">
+        <input type="file" id="fileInputLibrary" accept="image/*" style="display:none;">
+        <button type="button" id="takePhotoBtn">Take photo</button>
+        <button type="button" id="chooseLibraryBtn">Choose from library</button>
+        <span id="imgInfo" class="mono"></span>
+      </div>
+
+      <div class="canvas-wrap" id="canvasWrap">
+        <canvas id="stage" width="800" height="450"></canvas>
+        <div id="emptyState">Load a photo of the ring stack, then click two points<br>to draw the measuring axis along the stack.</div>
+      </div>
+
+      <div class="legend">
+        <span><i class="swatch" style="background:var(--amber);border-top:1px dashed var(--amber);height:0;"></i> measuring axis</span>
+        <span><i class="swatch" style="background:var(--teal);"></i> detected ring boundary</span>
+        <span><i class="swatch" style="background:#9be8dc;border-top:1px dashed #9be8dc;height:0;"></i> boundary added by recheck</span>
+        <span><i class="swatch" style="background:var(--red);"></i> selected reference ring</span>
+      </div>
+
+      <div class="hint" id="hintText"><b>Step 1</b> — load an image. <b>Step 2</b> — click (or tap) the <em>outer face</em> of the first ring, then the outer face of the last ring, to set the axis. Both ends count as boundaries, so tap precisely — pinch-zoom your browser or steady your elbows first if the stack is small on screen. <b>Tip:</b> a ring boundary is often where the surface finish changes — one face catching more glare (specular/shiny) than its neighbour (matte/diffuse) — even when the two faces are nearly the same brightness. The <b>Detection filter</b> below lets you process on that shine difference instead of plain brightness. If rings are thin and tightly packed, start with a low <b>Min. gap</b>.</div>
+      <div class="hint">📱 <b>Shooting the photo:</b> hold the phone square to the stack's axis (tilt = a real cosine error, not a pixel one) and rest your elbows or the phone against something solid — a slightly blurred shot costs more accuracy than any setting below. Tap-to-focus directly on the stack, use 1× or 2× rather than a heavy digital zoom, and keep the whole stack filling as much of the frame as you can.</div>
+
+      <div class="controls">
+        <label>Detection filter <span id="detectSourceVal">Shine (specular)</span>
+          <select id="detectSource">
+            <option value="lum">Brightness (luminance)</option>
+            <option value="shine" selected>Shine (specular)</option>
+            <option value="combined">Combined</option>
+          </select>
+        </label>
+        <label>Sensitivity <span id="sensitivityVal"></span>
+          <input type="range" id="sensitivity" min="1" max="100" value="55">
+        </label>
+        <label>Min. gap (px) <span id="minGapVal"></span>
+          <input type="range" id="minGap" min="2" max="150" value="14">
+        </label>
+        <label>Smoothing <span id="smoothingVal"></span>
+          <input type="range" id="smoothing" min="1" max="25" value="13" step="2">
+        </label>
+        <label>Band width (px) <span id="bandWidthVal"></span>
+          <input type="range" id="bandWidth" min="1" max="41" value="17" step="2">
+        </label>
+        <button id="resetLineBtn">Reset axis</button>
+      </div>
+
+      <canvas id="profile" height="90"></canvas>
+      <div class="hint">Profile: grey = active filter channel along the axis (brightness or shine, per <b>Detection filter</b> above), teal = detected boundary strength. Click a boundary line on the image to delete it; click elsewhere on the axis to add one manually.</div>
+    </section>
+
+    <aside class="data-panel">
+      <div class="card">
+        <h2>Calibration</h2>
+        <div class="tabs">
+          <button class="tab active" data-tab="ref">From a known ring</button>
+          <button class="tab" data-tab="geo">From camera geometry</button>
+        </div>
+
+        <div class="tab-panel" id="tab-ref">
+          <label>Reference ring
+            <select id="refRingSelect"><option>Detect rings first</option></select>
+          </label>
+          <label>Its actual thickness (mm)
+            <input type="number" id="refThickness" step="0.001" placeholder="e.g. 4.750">
+          </label>
+          <button class="primary" id="calibrateRefBtn">Set scale from this ring</button>
+        </div>
+
+        <div class="tab-panel hidden" id="tab-geo">
+          <label>Device / lens preset
+            <select id="devicePreset">
+              <option value="">— select to autofill —</option>
+              <option value="6.05,8.06">iPhone 16 / 16 Plus — Main (1×)</option>
+              <option value="6.05,4.03">iPhone 16 / 16 Plus — 2× crop</option>
+              <option value="6.80,9.84">iPhone 16 Pro / Pro Max — Main (1×)</option>
+              <option value="6.80,4.92">iPhone 16 Pro / Pro Max — 2× crop</option>
+              <option value="15.70,4.52">iPhone 16 Pro Max — 5× Telephoto</option>
+              <option value="2.20,5.65">iPhone 16 (any) — Ultra Wide (0.5×)</option>
+            </select>
+          </label>
+          <div class="hint" id="presetNote" style="margin-top:-6px;">Presets are approximate (derived from published specs, not your exact unit). Prefer the EXIF-detected value below when available, or better still, calibrate <b>From a known ring</b> — it needs no camera specs at all.</div>
+          <label>Focal length (mm)
+            <input type="number" id="focalLength" step="0.01" value="6.05">
+          </label>
+          <div class="hint" id="exifNote" style="margin-top:-6px;min-height:14px;"></div>
+          <label>Sensor width (mm)
+            <input type="number" id="sensorWidth" step="0.01" value="8.06">
+          </label>
+          <label>Working distance, camera → stack (mm)
+            <input type="number" id="distance" step="0.5" placeholder="required">
+          </label>
+          <label>Image width used (px)
+            <input type="text" id="imgWidthUsed" readonly>
+          </label>
+          <button class="primary" id="calibrateGeoBtn">Set scale from geometry</button>
+        </div>
+
+        <div class="scale-readout mono" id="scaleReadout">Scale: not calibrated</div>
+        <div class="scale-crosscheck mono" id="crossCheck"></div>
+      </div>
+
+      <div class="card">
+        <h2>Result</h2>
+        <div class="ring-count"><span id="ringCount">0</span><label>rings detected</label></div>
+        <label style="display:flex;flex-direction:column;gap:4px;font-size:11.5px;color:var(--text-dim);margin-bottom:10px;">
+          Expected thickness / ring (mm) — optional, for the Δ column and recheck
+          <input type="number" id="expectedThickness" step="0.001" placeholder="e.g. 4.750"
+            style="background:#0f1216;border:1px solid var(--line);color:var(--text);border-radius:3px;padding:7px 8px;font-size:13px;font-family:'JetBrains Mono',monospace;">
+        </label>
+        <label style="display:flex;flex-direction:column;gap:4px;font-size:11.5px;color:var(--text-dim);margin-bottom:10px;">
+          Tolerance (± %) — how far a line can drift from expected before it's flagged / corrected
+          <input type="number" id="tolerancePct" step="1" min="1" max="90" value="15"
+            style="background:#0f1216;border:1px solid var(--line);color:var(--text);border-radius:3px;padding:7px 8px;font-size:13px;font-family:'JetBrains Mono',monospace;">
+        </label>
+        <button class="primary" id="recheckBtn" style="width:100%;margin-bottom:6px;" disabled
+          title="Splits/merges lines that fall outside the tolerance band around the expected thickness. Needs a calibrated scale and an expected thickness (from the field above, or the reference ring's mm value).">Recheck lines against calibrated thickness</button>
+        <div class="hint" id="recheckSummary" style="min-height:14px;margin-bottom:10px;"></div>
+        <div class="stack-total mono" id="stackTotal"></div>
+        <table id="segTable">
+          <thead><tr><th>#</th><th>px</th><th>mm</th><th>&Delta; exp.</th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </aside>
+  </main>
+</div>
+
+<script>
+(function(){
+  "use strict";
+
+  // ---------- state ----------
+  const MAX_WORKING_W = 3200; // ~2x the previous cap - halves the mm/px quantization step on modern phone photos while staying well inside iOS Safari's canvas memory limits
+  let nativeW=0, nativeH=0, workingW=0, workingH=0;
+  let gray = null;       // Float32Array — active detection channel, workingW*workingH
+  let grayLum = null;    // Float32Array — plain luminance channel
+  let grayShine = null;  // Float32Array — specular/"shine" channel (bright + desaturated)
+  let hasImage = false;
+
+  let A = null, B = null;       // axis endpoints, in working-canvas px
+  let lineSet = false;
+  let dragging = null;          // 'A' | 'B' | null
+  let dragMoved = false;
+
+  let profile = [];             // {t, x, y, lum}
+  let smoothed = [];
+  let absGrad = [];
+  let edges = [];                // sorted array of {t, distPx, x, y}
+  let selectedRef = null;        // index into segments (ring #) chosen as reference
+
+  let scaleMmPerPx = null;
+  let scaleSource = null;
+  let _cachedImgData = null;
+
+  // ---------- dom ----------
+  const stage = document.getElementById('stage');
+  const ctx = stage.getContext('2d');
+  const profileCanvas = document.getElementById('profile');
+  const pctx = profileCanvas.getContext('2d');
+  const fileInputCamera = document.getElementById('fileInputCamera');
+  const fileInputLibrary = document.getElementById('fileInputLibrary');
+  const takePhotoBtn = document.getElementById('takePhotoBtn');
+  const chooseLibraryBtn = document.getElementById('chooseLibraryBtn');
+  const imgInfo = document.getElementById('imgInfo');
+  const emptyState = document.getElementById('emptyState');
+  const hintText = document.getElementById('hintText');
+  const canvasWrap = document.getElementById('canvasWrap');
+
+  const detectSourceEl = document.getElementById('detectSource');
+  const detectSourceVal = document.getElementById('detectSourceVal');
+  const sensitivityEl = document.getElementById('sensitivity');
+  const minGapEl = document.getElementById('minGap');
+  const smoothingEl = document.getElementById('smoothing');
+  const sensitivityVal = document.getElementById('sensitivityVal');
+  const minGapVal = document.getElementById('minGapVal');
+  const smoothingVal = document.getElementById('smoothingVal');
+  const bandWidthEl = document.getElementById('bandWidth');
+  const bandWidthVal = document.getElementById('bandWidthVal');
+  const resetLineBtn = document.getElementById('resetLineBtn');
+
+  const tabs = document.querySelectorAll('.tab');
+  const tabRef = document.getElementById('tab-ref');
+  const tabGeo = document.getElementById('tab-geo');
+  const refRingSelect = document.getElementById('refRingSelect');
+  const refThickness = document.getElementById('refThickness');
+  const calibrateRefBtn = document.getElementById('calibrateRefBtn');
+  const focalLengthEl = document.getElementById('focalLength');
+  const sensorWidthEl = document.getElementById('sensorWidth');
+  const devicePresetEl = document.getElementById('devicePreset');
+  const exifNoteEl = document.getElementById('exifNote');
+  const distanceEl = document.getElementById('distance');
+  const imgWidthUsedEl = document.getElementById('imgWidthUsed');
+  const calibrateGeoBtn = document.getElementById('calibrateGeoBtn');
+  const scaleReadout = document.getElementById('scaleReadout');
+  const crossCheck = document.getElementById('crossCheck');
+
+  const ringCountEl = document.getElementById('ringCount');
+  const stackTotalEl = document.getElementById('stackTotal');
+  const expectedThicknessEl = document.getElementById('expectedThickness');
+  const tolerancePctEl = document.getElementById('tolerancePct');
+  const segTableBody = document.querySelector('#segTable tbody');
+
+  // ---------- device presets ----------
+  devicePresetEl.addEventListener('change', ()=>{
+    if(!devicePresetEl.value) return;
+    const [f, sw] = devicePresetEl.value.split(',');
+    focalLengthEl.value = f;
+    sensorWidthEl.value = sw;
+    exifNoteEl.textContent = '';
+  });
+
+  // ---------- minimal EXIF reader (FocalLength only) ----------
+  // Reads just enough of the JPEG APP1/TIFF structure to pull the actual
+  // (physical, not 35mm-equivalent) FocalLength tag straight from the photo,
+  // which is far more trustworthy than any hardcoded device preset.
+  function readExifFocalLength(buffer){
+    try{
+      const view = new DataView(buffer);
+      if(view.byteLength < 4 || view.getUint16(0) !== 0xFFD8) return null; // not a JPEG
+      let offset = 2;
+      while(offset < view.byteLength - 1){
+        if(view.getUint8(offset) !== 0xFF) return null;
+        const marker = view.getUint8(offset+1);
+        if(marker === 0xD8 || marker === 0x01 || (marker >= 0xD0 && marker <= 0xD7)){ offset += 2; continue; }
+        if(marker === 0xD9 || marker === 0xDA) break; // EOI / start-of-scan: no more APPn segments follow
+        if(offset + 4 > view.byteLength) break;
+        const size = view.getUint16(offset+2);
+        if(marker === 0xE1 && offset+10 <= view.byteLength && view.getUint32(offset+4) === 0x45786966){ // "Exif"
+          return parseTiffFocalLength(view, offset+10);
+        }
+        offset += 2 + size;
+      }
+    } catch(err){ /* malformed/truncated EXIF - just skip auto-detection */ }
+    return null;
+  }
+
+  function parseTiffFocalLength(view, tiffOffset){
+    const little = view.getUint16(tiffOffset) === 0x4949;
+    const u16 = o => view.getUint16(o, little);
+    const u32 = o => view.getUint32(o, little);
+    const ifd0Offset = tiffOffset + u32(tiffOffset+4);
+    const ifd0 = readIFD(view, tiffOffset, ifd0Offset, little);
+    const exifPtr = ifd0[0x8769];
+    if(exifPtr == null) return null;
+    const exifIfd = readIFD(view, tiffOffset, tiffOffset+exifPtr, little);
+    if(exifIfd[0x920A] != null) return { focal: exifIfd[0x920A], focal35: exifIfd[0xA405] || null };
+    return null;
+  }
+
+  function readIFD(view, tiffOffset, ifdOffset, little){
+    const u16 = o => view.getUint16(o, little);
+    const u32 = o => view.getUint32(o, little);
+    const count = u16(ifdOffset);
+    const tags = {};
+    for(let i=0;i<count;i++){
+      const entry = ifdOffset + 2 + i*12;
+      const tag = u16(entry), type = u16(entry+2), num = u32(entry+4), valField = entry+8;
+      let value = null;
+      if(type === 3) value = num===1 ? u16(valField) : u16(tiffOffset + u32(valField));
+      else if(type === 4) value = u32(valField);
+      else if(type === 5){ const ro = tiffOffset + u32(valField); const n=u32(ro), d=u32(ro+4); value = d!==0 ? n/d : null; }
+      if(value != null) tags[tag] = value;
+    }
+    return tags;
+  }
+
+  // ---------- image load ----------
+  function handleFileSelected(e){
+    const f = e.target.files && e.target.files[0];
+    if(!f) return;
+    const reader = new FileReader();
+    reader.onload = (ev)=>{
+      const img = new Image();
+      img.onload = ()=> loadImage(img, f);
+      img.src = ev.target.result;
+    };
+    reader.readAsDataURL(f);
+
+    exifNoteEl.textContent = '';
+    const exifReader = new FileReader();
+    exifReader.onload = (ev)=>{
+      const exif = readExifFocalLength(ev.target.result);
+      if(exif && exif.focal){
+        focalLengthEl.value = exif.focal.toFixed(2);
+        devicePresetEl.value = '';
+        exifNoteEl.innerHTML = `<b>Focal length auto-read from photo EXIF: ${exif.focal.toFixed(2)} mm.</b> Sensor width still needs a preset above (or a reference-ring calibration instead).`;
+      }
+    };
+    exifReader.readAsArrayBuffer(f);
+  }
+  fileInputCamera.addEventListener('change', handleFileSelected);
+  fileInputLibrary.addEventListener('change', handleFileSelected);
+  takePhotoBtn.addEventListener('click', ()=> fileInputCamera.click());
+  chooseLibraryBtn.addEventListener('click', ()=> fileInputLibrary.click());
+
+  function loadImage(img, file){
+    nativeW = img.naturalWidth;
+    nativeH = img.naturalHeight;
+    const ratio = nativeW > MAX_WORKING_W ? MAX_WORKING_W / nativeW : 1;
+    workingW = Math.round(nativeW * ratio);
+    workingH = Math.round(nativeH * ratio);
+
+    stage.width = workingW;
+    stage.height = workingH;
+    profileCanvas.width = profileCanvas.clientWidth || 600;
+
+    ctx.drawImage(img, 0, 0, workingW, workingH);
+    const id = ctx.getImageData(0,0,workingW,workingH);
+    const pxCount = workingW*workingH;
+    grayLum = new Float32Array(pxCount);
+    grayShine = new Float32Array(pxCount);
+    for(let i=0, p=0; i<id.data.length; i+=4, p++){
+      const r=id.data[i], g=id.data[i+1], b=id.data[i+2];
+      grayLum[p] = 0.299*r + 0.587*g + 0.114*b;
+      // Specular/"shine" estimate, from the dichromatic reflection model:
+      // a glossy metal surface reflects the light source's own colour (near
+      // white/grey) on top of the body colour, so specular pixels are BOTH
+      // bright and desaturated. maxc*(1-sat) is high exactly there, and low
+      // on dark or strongly-coloured (saturated) diffuse pixels — so a ring
+      // face with a different surface finish (polished vs. machined/matte)
+      // from its neighbour shows up as a step in this channel even when
+      // plain brightness barely changes across the boundary.
+      const maxc = Math.max(r,g,b), minc = Math.min(r,g,b);
+      const sat = maxc>0 ? (maxc-minc)/maxc : 0;
+      grayShine[p] = maxc*(1-sat);
+    }
+    applyDetectionChannel();
+    _cachedImgData = id; // cache pixels now, before any clearRect can wipe the canvas
+    hasImage = true;
+    emptyState.style.display = 'none';
+    imgInfo.textContent = `${file.name} · ${nativeW}×${nativeH}px native, processing at ${workingW}×${workingH}px`;
+    imgWidthUsedEl.value = workingW + ' px';
+
+    A = null; B = null; lineSet = false; edges = []; profile = [];
+    hintText.innerHTML = '<b>Step 2</b> — click the near end, then the far end, of the ring stack to set the measuring axis.';
+    updateResults();
+    redraw();
+  }
+
+  // ---------- luminance sampling ----------
+  function lumAt(x,y){
+    x = Math.max(0, Math.min(workingW-1.001, x));
+    y = Math.max(0, Math.min(workingH-1.001, y));
+    const x0=Math.floor(x), y0=Math.floor(y), x1=x0+1, y1=y0+1;
+    const fx=x-x0, fy=y-y0;
+    const g=(xx,yy)=>gray[yy*workingW+xx];
+    const top = g(x0,y0)*(1-fx)+g(x1,y0)*fx;
+    const bot = g(x0,y1)*(1-fx)+g(x1,y1)*fx;
+    return top*(1-fy)+bot*fy;
+  }
+
+  // ---------- canvas interaction ----------
+  function canvasCoords(evt){
+    const rect = stage.getBoundingClientRect();
+    const sx = stage.width/rect.width, sy = stage.height/rect.height;
+    return { x:(evt.clientX-rect.left)*sx, y:(evt.clientY-rect.top)*sy };
+  }
+  function dist(p,q){ return Math.hypot(p.x-q.x, p.y-q.y); }
+
+  stage.addEventListener('pointerdown',(e)=>{
+    if(!hasImage) return;
+    const p = canvasCoords(e);
+    if(lineSet){
+      // Touch fingers are much less precise than a mouse cursor, so give
+      // touch input a hit target sized in real screen pixels (~22px)
+      // rather than canvas pixels - otherwise the handles become
+      // effectively untappable once the working resolution (and so the
+      // canvas/display scale ratio) goes up on a high-res phone photo.
+      const rect = stage.getBoundingClientRect();
+      const sx = stage.width / rect.width;
+      const padCss = e.pointerType === 'touch' ? 22 : 10;
+      const hitR = Math.max(padCss*sx, workingW*0.012);
+      if(dist(p,A) < hitR){ dragging='A'; dragMoved=false; stage.setPointerCapture(e.pointerId); return; }
+      if(dist(p,B) < hitR){ dragging='B'; dragMoved=false; stage.setPointerCapture(e.pointerId); return; }
+    }
+  });
+  window.addEventListener('pointermove',(e)=>{
+    if(!dragging) return;
+    dragMoved = true;
+    const p = canvasCoords(e);
+    if(dragging==='A') A = p; else B = p;
+    redraw();
+  });
+  window.addEventListener('pointerup',(e)=>{
+    if(dragging){
+      const wasMoved = dragMoved;
+      dragging = null; dragMoved=false;
+      if(wasMoved){ runDetection(); }
+      return;
+    }
+  });
+  window.addEventListener('pointercancel',()=>{ dragging=null; dragMoved=false; });
+
+  stage.addEventListener('click',(e)=>{
+    if(!hasImage) return;
+    const p = canvasCoords(e);
+
+    if(!lineSet){
+      if(!A){ A = p; redraw(); hintText.innerHTML = '<b>Step 2</b> — now click the far end of the stack.'; return; }
+      if(!B){
+        B = p; lineSet = true; redraw();
+        hintText.innerHTML = 'Axis set. Adjust <b>sensitivity</b> / <b>min. gap</b> below to tune the ring count, or drag the two axis handles to refine it. Recheck now scans the whole axis, including the ends.';
+        runDetection();
+        return;
+      }
+    } else {
+      // manual edit: near an existing edge tick -> remove; near axis elsewhere -> add
+      handleManualEdit(p);
+    }
+  });
+
+  function projectOntoLine(p){
+    const dx=B.x-A.x, dy=B.y-A.y;
+    const len2 = dx*dx+dy*dy;
+    if(len2===0) return null;
+    let t = ((p.x-A.x)*dx + (p.y-A.y)*dy)/len2;
+    const cx = A.x+dx*t, cy = A.y+dy*t;
+    const perpDist = dist(p,{x:cx,y:cy});
+    return {t, cx, cy, perpDist};
+  }
+
+  function handleManualEdit(p){
+    const proj = projectOntoLine(p);
+    if(!proj) return;
+    const lineLen = dist(A,B);
+    const tolPerp = Math.max(18, lineLen*0.03);
+    if(proj.perpDist > tolPerp) return; // click far from axis, ignore
+    if(proj.t < -0.02 || proj.t > 1.02) return;
+
+    const clickDistPx = proj.t*lineLen;
+    const minGapPx = parseFloat(minGapEl.value);
+
+    // find nearest existing edge
+    let nearestIdx=-1, nearestD=Infinity;
+    edges.forEach((ed,i)=>{
+      const d = Math.abs(ed.distPx - clickDistPx);
+      if(d<nearestD){ nearestD=d; nearestIdx=i; }
+    });
+
+    if(nearestIdx>=0 && nearestD < Math.max(12, minGapPx*0.5)){
+      edges.splice(nearestIdx,1); // remove
+    } else {
+      const t = Math.max(0,Math.min(1,proj.t));
+      edges.push({ t, distPx: t*lineLen, x: A.x+(B.x-A.x)*t, y: A.y+(B.y-A.y)*t, strength: Infinity, auto:false, manual:true });
+      edges.sort((a,b)=>a.distPx-b.distPx);
+    }
+    updateResults();
+    redraw();
+  }
+
+  resetLineBtn.addEventListener('click',()=>{
+    A=null; B=null; lineSet=false; edges=[]; profile=[];
+    hintText.innerHTML = '<b>Step 2</b> — click the near end, then the far end, of the ring stack to set the measuring axis.';
+    updateResults();
+    redraw();
+  });
+
+  // ---------- edge detection pipeline ----------
+  function gaussianKernel(k){
+    if(k%2===0) k++;
+    const half = Math.floor(k/2);
+    const sigma = Math.max(0.6, k/3);
+    const gk = new Array(k);
+    let sum=0;
+    for(let j=-half;j<=half;j++){ const w=Math.exp(-(j*j)/(2*sigma*sigma)); gk[j+half]=w; sum+=w; }
+    for(let j=0;j<k;j++) gk[j]/=sum;
+    return { gk, half };
+  }
+
+  function gaussianSmooth(arr, gk, half){
+    const n = arr.length;
+    const out = new Array(n);
+    for(let i=0;i<n;i++){
+      let sum=0, wsum=0;
+      for(let j=-half;j<=half;j++){
+        const idx=i+j; if(idx<0||idx>=n) continue;
+        const w=gk[j+half]; sum+=arr[idx]*w; wsum+=w;
+      }
+      out[i]=sum/wsum;
+    }
+    return out;
+  }
+
+  // Sub-pixel parabolic peak refinement: fits a parabola through a local
+  // maximum and its two neighbours so a boundary lands between samples
+  // instead of being quantized to the nearest one.
+  function subpixelOffset(gL,gC,gR){
+    const denom = gL - 2*gC + gR;
+    if(denom===0) return 0;
+    return Math.max(-1, Math.min(1, 0.5*(gL-gR)/denom));
+  }
+
+  function median(arr){
+    const s = arr.slice().sort((a,b)=>a-b);
+    const mid = s.length>>1;
+    return s.length%2 ? s[mid] : (s[mid-1]+s[mid])/2;
+  }
+
+  function runDetection(){
+    if(!lineSet) return;
+    const lineLen = dist(A,B);
+    const n = Math.max(60, Math.min(8000, Math.round(lineLen)));
+    const dx=B.x-A.x, dy=B.y-A.y;
+    const perpX=-(dy/lineLen), perpY=(dx/lineLen); // perpendicular unit vector
+    const pxPerSample = lineLen/(n-1);
+
+    // Sample several independent parallel rails spanning the band width.
+    // IMPORTANT: unlike an earlier version of this function, we do NOT
+    // detect peaks separately on each rail and then try to match them up
+    // by position — a boundary that's even slightly tilted relative to the
+    // axis (very common: rings are cylindrical, photos are rarely perfectly
+    // square-on) lands at a different sample index on each rail, so
+    // position-matching between independently detected peaks either drops
+    // real edges or averages together votes that were never the same
+    // physical edge. Instead we combine the rails' raw gradient values at
+    // each shared sample index FIRST (via median, which is robust to a
+    // defect on any single rail), and detect peaks once on that combined
+    // signal — this sidesteps the tilt problem entirely.
+    const bandPx = parseFloat(bandWidthEl.value);
+    const bandHalf = bandPx/2;
+    let railOffsets;
+    if(bandHalf < 1) railOffsets = [0];
+    else if(bandHalf < 6) railOffsets = [-bandHalf, 0, bandHalf];
+    else railOffsets = [-bandHalf, -bandHalf/2, 0, bandHalf/2, bandHalf];
+
+    let k = parseInt(smoothingEl.value,10);
+    const {gk, half} = gaussianKernel(k);
+
+    const minGapPx = parseFloat(minGapEl.value);
+    const minGapSamples = Math.max(1, minGapPx/pxPerSample);
+    // Detrending window is sized relative to the expected ring spacing
+    // (min. gap), not a fixed fraction of the image — wide enough to strip
+    // out slow lighting gradients (vignetting, angled light) but not so
+    // narrow that it starts cancelling out the ring boundaries themselves.
+    const trendHalf = Math.max(half*4, Math.round(minGapSamples*4));
+
+    const railGrads = [];
+    let centerLum = null;
+
+    railOffsets.forEach(off=>{
+      const lum = new Array(n);
+      for(let i=0;i<n;i++){
+        const t = i/(n-1);
+        lum[i] = lumAt(A.x+dx*t+perpX*off, A.y+dy*t+perpY*off);
+      }
+      if(off===0) centerLum = lum;
+
+      const sm = gaussianSmooth(lum, gk, half);
+
+      const trend = new Array(n);
+      for(let i=0;i<n;i++){
+        let sum=0, cnt=0;
+        for(let j=Math.max(0,i-trendHalf); j<=Math.min(n-1,i+trendHalf); j++){ sum+=sm[j]; cnt++; }
+        trend[i] = sum/cnt;
+      }
+      const detrended = sm.map((v,i)=>v-trend[i]);
+
+      const g = new Array(n).fill(0);
+      for(let i=1;i<n-1;i++) g[i] = Math.abs(detrended[i+1]-detrended[i-1]);
+      railGrads.push(g);
+    });
+
+    profile = new Array(n);
+    for(let i=0;i<n;i++){ const t=i/(n-1); profile[i] = { t, x:A.x+dx*t, y:A.y+dy*t, lum:centerLum[i] }; }
+
+    // Combine rails index-by-index via median — robust to a defect on any
+    // one rail without requiring the rails to agree on exact peak position.
+    absGrad = new Array(n).fill(0);
+    for(let i=0;i<n;i++){
+      absGrad[i] = railGrads.length===1 ? railGrads[0][i] : median(railGrads.map(g=>g[i]));
+    }
+
+    // threshold from sensitivity, referenced against the 95th-percentile
+    // gradient rather than the true max — robust to a single outlier spike.
+    const sens = parseFloat(sensitivityEl.value); // 1..100
+    const sortedGrad = absGrad.slice().sort((a,b)=>a-b);
+    const refG = Math.max(sortedGrad[Math.floor(sortedGrad.length*0.95)] || 0, 1e-6);
+    const thresholdFrac = Math.max(0.02, Math.min(0.98, 1 - sens/100));
+    const threshold = refG*thresholdFrac;
+
+    const candidates = [];
+    for(let i=1;i<n-1;i++){
+      if(absGrad[i] >= threshold && absGrad[i] >= absGrad[i-1] && absGrad[i] >= absGrad[i+1]){
+        // width at half-max: a genuine ring boundary is a thin, crisp
+        // transition; a paint mark or a blown-out specular highlight tends
+        // to produce a wider, more gradual gradient bump. Measuring this
+        // lets us tell the two apart even when their peak strength is
+        // similar to a real edge.
+        const halfH = absGrad[i]/2;
+        let l=i; while(l>0 && absGrad[l]>halfH) l--;
+        let r=i; while(r<n-1 && absGrad[r]>halfH) r++;
+        candidates.push({ i, strength: absGrad[i], width: r-l });
+      }
+    }
+
+    // Reject candidates far wider than the typical (median) peak — this is
+    // a conservative outlier cut, not a hard rule: on a clean stack nearly
+    // every real boundary is only a few samples wide, so genuine edges are
+    // essentially never affected, while an occasional wide, blob-shaped
+    // false peak (paint/glare) gets filtered out before it can compete
+    // with real boundaries or waste a min-gap slot next to one.
+    let widthCap = Infinity;
+    if(candidates.length >= 6){
+      const widths = candidates.map(c=>c.width).sort((a,b)=>a-b);
+      const medW = widths[Math.floor(widths.length/2)];
+      widthCap = Math.max(8, medW*4);
+    }
+    const shortlisted = candidates.filter(c => c.width <= widthCap);
+    shortlisted.sort((a,b)=> b.strength - a.strength);
+
+    const selected = [];
+    for(const c of shortlisted){
+      if(selected.every(s => Math.abs(s.i-c.i) >= minGapSamples)) selected.push(c);
+    }
+    selected.sort((a,b)=>a.i-b.i);
+
+    // sub-pixel refinement: parabola through the peak and its neighbours.
+    edges = selected.map(c=>{
+      const i = c.i;
+      const off = subpixelOffset(absGrad[i-1], absGrad[i], absGrad[i+1]);
+      const subI = Math.max(0, Math.min(n-1, i+off));
+      const t = subI/(n-1);
+      return { t, distPx: t*lineLen, x: A.x+dx*t, y: A.y+dy*t, strength: c.strength, auto:false };
+    });
+
+    selectedRef = null;
+    updateResults();
+    redraw();
+    drawProfileChart(pxPerSample);
+  }
+
+  // Swap the active `gray` channel that lumAt()/runDetection() sample from.
+  // Recomputing "combined" on every switch is cheap enough at these image
+  // sizes (a few MP) to just do it inline rather than caching a third array.
+  function applyDetectionChannel(){
+    if(!grayLum || !grayShine) return;
+    const mode = detectSourceEl.value;
+    if(mode==='shine'){
+      gray = grayShine;
+      detectSourceVal.textContent = 'Shine (specular)';
+    } else if(mode==='combined'){
+      const n = grayLum.length;
+      const combined = new Float32Array(n);
+      for(let i=0;i<n;i++) combined[i] = 0.5*grayLum[i] + 0.5*grayShine[i];
+      gray = combined;
+      detectSourceVal.textContent = 'Combined';
+    } else {
+      gray = grayLum;
+      detectSourceVal.textContent = 'Brightness (luminance)';
+    }
+  }
+  detectSourceEl.addEventListener('change', ()=>{
+    applyDetectionChannel();
+    if(lineSet) runDetection();
+  });
+
+  sensitivityEl.addEventListener('input', ()=>{ sensitivityVal.textContent=sensitivityEl.value; if(lineSet) runDetection(); });
+  minGapEl.addEventListener('input', ()=>{ minGapVal.textContent=minGapEl.value; if(lineSet) runDetection(); });
+  smoothingEl.addEventListener('input', ()=>{ smoothingVal.textContent=smoothingEl.value; if(lineSet) runDetection(); });
+  bandWidthEl.addEventListener('input', ()=>{ bandWidthVal.textContent=bandWidthEl.value; if(lineSet) runDetection(); });
+  sensitivityVal.textContent = sensitivityEl.value;
+  minGapVal.textContent = minGapEl.value;
+  smoothingVal.textContent = smoothingEl.value;
+  bandWidthVal.textContent = bandWidthEl.value;
+
+  // ---------- drawing ----------
+  function redraw(){
+    if(!hasImage) return;
+    ctx.clearRect(0,0,stage.width,stage.height);
+    // redraw base image
+    // (we kept gray but not the original color pixels separately; re-grab via drawImage cache)
+    ctx.putImageData(cachedImageData(), 0, 0);
+
+    if(A){
+      // axis line
+      if(B){
+        ctx.save();
+        ctx.strokeStyle = '#e8a33d';
+        ctx.setLineDash([9,6]);
+        ctx.lineWidth = Math.max(1.5, workingW*0.0018);
+        ctx.beginPath();
+        ctx.moveTo(A.x,A.y); ctx.lineTo(B.x,B.y);
+        ctx.stroke();
+        ctx.restore();
+
+        // perpendicular unit vector for tick marks
+        const dx=B.x-A.x, dy=B.y-A.y, len=Math.hypot(dx,dy)||1;
+        const ux=dx/len, uy=dy/len;
+        const px=-uy, py=ux;
+        const tickLen = Math.max(22, len*0.045);
+
+        edges.forEach((ed,i)=>{
+          ctx.save();
+          ctx.strokeStyle = ed.auto ? '#9be8dc' : '#3fd9c2';
+          ctx.lineWidth = Math.max(1.5, workingW*0.0022);
+          if(ed.auto) ctx.setLineDash([5,4]);
+          ctx.beginPath();
+          ctx.moveTo(ed.x-px*tickLen, ed.y-py*tickLen);
+          ctx.lineTo(ed.x+px*tickLen, ed.y+py*tickLen);
+          ctx.stroke();
+          ctx.restore();
+        });
+
+        // highlight selected reference segment
+        if(selectedRef!==null && lastBoundaries[selectedRef] && lastBoundaries[selectedRef+1]){
+          const e0=lastBoundaries[selectedRef], e1=lastBoundaries[selectedRef+1];
+          ctx.save();
+          ctx.strokeStyle = '#e6636b';
+          ctx.lineWidth = Math.max(3, workingW*0.004);
+          ctx.beginPath();
+          ctx.moveTo(e0.x,e0.y); ctx.lineTo(e1.x,e1.y);
+          ctx.stroke();
+          ctx.restore();
+        }
+      }
+      // handles
+      [A,B].forEach((pt,idx)=>{
+        if(!pt) return;
+        ctx.save();
+        ctx.fillStyle = '#e8a33d';
+        ctx.strokeStyle = '#12151a';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.arc(pt.x, pt.y, Math.max(6, workingW*0.007), 0, Math.PI*2);
+        ctx.fill(); ctx.stroke();
+        ctx.restore();
+      });
+    }
+  }
+
+  function cachedImageData(){
+    // we never overwrite the base pixels on the visible canvas beyond first draw,
+    // but ctx.clearRect wipes it — so capture once after load and reuse.
+    if(!_cachedImgData){ _cachedImgData = ctx.getImageData(0,0,stage.width,stage.height); }
+    return _cachedImgData;
+  }
+
+  function drawProfileChart(pxPerSample){
+    const w = profileCanvas.width = profileCanvas.clientWidth || 600;
+    const h = profileCanvas.height;
+    pctx.clearRect(0,0,w,h);
+    if(profile.length<2) return;
+    const n = profile.length;
+    const lumMax = Math.max(...profile.map(p=>p.lum)), lumMin = Math.min(...profile.map(p=>p.lum));
+    const gMax = Math.max(...absGrad, 1e-6);
+
+    pctx.strokeStyle = '#3a4048';
+    pctx.lineWidth = 1;
+    pctx.beginPath();
+    pctx.moveTo(0,h*0.5); pctx.lineTo(w,h*0.5);
+    pctx.stroke();
+
+    // luminance trace
+    pctx.strokeStyle = '#8a94a1';
+    pctx.lineWidth = 1.2;
+    pctx.beginPath();
+    for(let i=0;i<n;i++){
+      const x = (i/(n-1))*w;
+      const y = h - 6 - ((profile[i].lum-lumMin)/(lumMax-lumMin+1e-6))*(h-16);
+      if(i===0) pctx.moveTo(x,y); else pctx.lineTo(x,y);
+    }
+    pctx.stroke();
+
+    // gradient trace
+    pctx.strokeStyle = '#3fd9c2';
+    pctx.lineWidth = 1.2;
+    pctx.beginPath();
+    for(let i=0;i<n;i++){
+      const x = (i/(n-1))*w;
+      const y = h - 4 - (absGrad[i]/gMax)*(h-10);
+      if(i===0) pctx.moveTo(x,y); else pctx.lineTo(x,y);
+    }
+    pctx.stroke();
+
+    // edge markers
+    pctx.strokeStyle = 'rgba(232,163,61,0.9)';
+    pctx.lineWidth = 1;
+    edges.forEach(ed=>{
+      const x = ed.t*w;
+      pctx.beginPath(); pctx.moveTo(x,0); pctx.lineTo(x,h); pctx.stroke();
+    });
+  }
+
+  // ---------- recheck against calibrated thickness ----------
+  const recheckBtn = document.getElementById('recheckBtn');
+  const recheckSummary = document.getElementById('recheckSummary');
+
+  function getExpectedPx(){
+    if(!scaleMmPerPx) return null;
+    let mm = parseFloat(expectedThicknessEl.value);
+    if(isNaN(mm) || mm<=0) mm = parseFloat(refThickness.value);
+    if(isNaN(mm) || mm<=0) return null;
+    return mm/scaleMmPerPx;
+  }
+
+  function getTolerance(){
+    let t = parseFloat(tolerancePctEl.value);
+    if(isNaN(t) || t<=0) t = 15;
+    if(t>90) t = 90;
+    return t/100;
+  }
+
+  function updateRecheckAvailability(){
+    const ok = lineSet && getExpectedPx()!==null;
+    recheckBtn.disabled = !ok;
+  }
+
+  recheckBtn.addEventListener('click', ()=>{
+    const expectedPx = getExpectedPx();
+    if(expectedPx===null || !lineSet) return;
+
+    const tol = getTolerance();          // e.g. 0.15 = ±15%
+    const lowerBound = expectedPx*(1-tol);  // below this -> too thin, likely spurious
+    const upperBound = expectedPx*(1+tol);  // above this -> too wide, likely missed a boundary
+
+    const sorted = boundaryList(); // spans the FULL axis: A -> ... detected edges ... -> B
+    if(sorted.length<2) return;
+    const rebuilt = [sorted[0]];
+    let splits=0, inserted=0, merges=0;
+
+    for(let i=0;i<sorted.length-1;i++){
+      const segStart = sorted[i], segEnd = sorted[i+1];
+      const L = segEnd.distPx - segStart.distPx;
+
+      if(L < lowerBound && !segEnd.manual && !segStart.manual && !segEnd.virtual){
+        // clearly thinner than tolerance allows -> drop this boundary, merge with neighbour
+        // (never drop an axis endpoint or a line you placed by hand)
+        merges++;
+        continue;
+      }
+
+      if(L > upperBound){
+        const count = Math.round(L/expectedPx);
+        if(count>=2){
+          // confidently spans multiple expected-sized rings -> insert missed boundaries
+          for(let k=1;k<count;k++){
+            const t = segStart.t + (segEnd.t-segStart.t)*(k/count);
+            const distPx = segStart.distPx + L*(k/count);
+            rebuilt.push({ t, distPx, x:A.x+(B.x-A.x)*t, y:A.y+(B.y-A.y)*t, strength:0, auto:true });
+            inserted++;
+          }
+          splits++;
+        }
+        // else: outside tolerance but not clearly 2 rings' worth -> left as-is,
+        // still flagged out-of-tolerance in the table's Δ column
+      }
+      rebuilt.push(segEnd);
+    }
+
+    // keep real detected/manual/auto boundaries; the axis-endpoint anchors are
+    // regenerated on demand by boundaryList(), so drop the plain virtual ones here
+    edges = rebuilt.filter(e => !e.virtual);
+    selectedRef = null;
+
+    const parts = [];
+    if(splits) parts.push(`split ${splits} wide gap${splits>1?'s':''} (+${inserted} line${inserted>1?'s':''})`);
+    if(merges) parts.push(`merged ${merges} spurious line${merges>1?'s':''}`);
+    recheckSummary.textContent = parts.length
+      ? `Recheck (±${Math.round(tol*100)}% tolerance): ${parts.join(', ')}.`
+      : `Recheck (±${Math.round(tol*100)}% tolerance): no changes — every segment is already within tolerance, end to end.`;
+
+    updateResults();
+    redraw();
+  });
+
+  // ---------- results / table ----------
+  let lastBoundaries = [];
+
+  function boundaryList(){
+    if(!lineSet) return [];
+    const lineLen = dist(A,B);
+    const sorted = edges.slice().sort((a,b)=>a.distPx-b.distPx);
+    const tol = Math.max(parseFloat(minGapEl.value)||10, lineLen*0.01);
+    const list = [];
+    if(sorted.length===0 || sorted[0].distPx > tol){
+      list.push({ t:0, distPx:0, x:A.x, y:A.y, virtual:true });
+    }
+    list.push(...sorted);
+    if(sorted.length===0 || (lineLen - sorted[sorted.length-1].distPx) > tol){
+      list.push({ t:1, distPx:lineLen, x:B.x, y:B.y, virtual:true });
+    }
+    return list;
+  }
+
+  function segments(){
+    lastBoundaries = boundaryList();
+    const segs=[];
+    for(let i=0;i<lastBoundaries.length-1;i++){
+      segs.push({ idx:i, px: lastBoundaries[i+1].distPx - lastBoundaries[i].distPx });
+    }
+    return segs;
+  }
+
+  function updateResults(){
+    const segs = segments();
+    ringCountEl.textContent = segs.length;
+
+    // populate reference select
+    const prevSel = refRingSelect.value;
+    refRingSelect.innerHTML = '';
+    if(segs.length===0){
+      const opt=document.createElement('option'); opt.textContent='Detect rings first';
+      refRingSelect.appendChild(opt);
+    } else {
+      segs.forEach((s,i)=>{
+        const opt=document.createElement('option');
+        opt.value=i;
+        opt.textContent = `Ring ${i+1}  (${s.px.toFixed(1)} px)`;
+        refRingSelect.appendChild(opt);
+      });
+      if(prevSel!=='' && Number(prevSel)<segs.length) refRingSelect.value=prevSel;
+    }
+
+    // table
+    segTableBody.innerHTML='';
+    const expected = parseFloat(expectedThicknessEl.value);
+    const tol = getTolerance();
+    let totalPx=0, totalMm=0;
+    segs.forEach((s,i)=>{
+      totalPx += s.px;
+      const mm = scaleMmPerPx ? s.px*scaleMmPerPx : null;
+      if(mm!==null) totalMm += mm;
+      const tr = document.createElement('tr');
+      const delta = (mm!==null && !isNaN(expected) && expected>0) ? (mm-expected) : null;
+      if(delta!==null && Math.abs(delta) > tol*expected) tr.classList.add('flag');
+      tr.innerHTML = `<td>${i+1}</td><td>${s.px.toFixed(1)}</td>`+
+        `<td>${mm!==null ? mm.toFixed(3) : '—'}</td>`+
+        `<td>${delta!==null ? (delta>=0?'+':'')+delta.toFixed(3) : '—'}</td>`;
+      segTableBody.appendChild(tr);
+    });
+
+    if(scaleMmPerPx){
+      stackTotalEl.innerHTML = `Stack span: <b>${totalPx.toFixed(1)} px</b> = <b>${totalMm.toFixed(3)} mm</b> over ${segs.length} ring(s)`;
+    } else {
+      stackTotalEl.innerHTML = segs.length ? `Stack span: <b>${totalPx.toFixed(1)} px</b> — calibrate to convert to mm` : '';
+    }
+    updateRecheckAvailability();
+  }
+  expectedThicknessEl.addEventListener('input', updateResults);
+  tolerancePctEl.addEventListener('input', updateResults);
+
+  // ---------- calibration ----------
+  tabs.forEach(tab=>{
+    tab.addEventListener('click', ()=>{
+      tabs.forEach(t=>t.classList.remove('active'));
+      tab.classList.add('active');
+      if(tab.dataset.tab==='ref'){ tabRef.classList.remove('hidden'); tabGeo.classList.add('hidden'); }
+      else { tabGeo.classList.remove('hidden'); tabRef.classList.add('hidden'); }
+    });
+  });
+
+  calibrateRefBtn.addEventListener('click', ()=>{
+    const segs = segments();
+    const idx = parseInt(refRingSelect.value,10);
+    const mm = parseFloat(refThickness.value);
+    if(isNaN(idx) || !segs[idx] || isNaN(mm) || mm<=0){
+      scaleReadout.textContent = 'Pick a detected ring and enter its actual thickness (mm) first.';
+      return;
+    }
+    scaleMmPerPx = mm/segs[idx].px;
+    scaleSource = `ring ${idx+1} (${mm} mm over ${segs[idx].px.toFixed(1)} px)`;
+    selectedRef = idx;
+    finishCalibration();
+  });
+
+  calibrateGeoBtn.addEventListener('click', ()=>{
+    const f = parseFloat(focalLengthEl.value);
+    const sw = parseFloat(sensorWidthEl.value);
+    const d = parseFloat(distanceEl.value);
+    if(!hasImage || isNaN(f) || isNaN(sw) || isNaN(d) || f<=0 || sw<=0 || d<=0){
+      scaleReadout.textContent = 'Enter focal length, sensor width and working distance first.';
+      return;
+    }
+    scaleMmPerPx = (sw*d)/(f*workingW);
+    scaleSource = `geometry (f=${f}mm, sensor=${sw}mm, d=${d}mm, img=${workingW}px)`;
+    finishCalibration();
+  });
+
+  function finishCalibration(){
+    scaleReadout.textContent = `Scale: ${scaleMmPerPx.toFixed(5)} mm/px  —  from ${scaleSource}`;
+    const f = parseFloat(focalLengthEl.value), sw = parseFloat(sensorWidthEl.value);
+    if(!isNaN(f) && !isNaN(sw) && f>0 && sw>0 && hasImage){
+      const impliedDistance = scaleMmPerPx*f*workingW/sw;
+      crossCheck.textContent = `Cross-check: implied working distance ≈ ${impliedDistance.toFixed(1)} mm`;
+    } else {
+      crossCheck.textContent = '';
+    }
+    updateResults();
+    redraw();
+  }
+
+})();
+</script>
+</body>
+</html>
