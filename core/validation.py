@@ -37,13 +37,15 @@ def build_roi(
     top: float,
     bottom: float,
     x_fraction: float,
+    width_fraction: float | None = None,
 ) -> ROI:
     height, width = image_shape[:2]
     validate_fractions(top, bottom, x_fraction)
     y = max(0, min(height - 1, int(round(top * height))))
     bottom_y = max(y + 1, min(height, int(round(bottom * height))))
     roi_height = bottom_y - y
-    roi_width = max(40, int(round(width * SETTINGS.AXIS_WIDTH_FRAC)))
+    frac = width_fraction if width_fraction is not None else SETTINGS.AXIS_WIDTH_FRAC
+    roi_width = max(40, int(round(width * frac)))
     roi_width = min(width, roi_width)
     center_x = int(round(x_fraction * max(0, width - 1)))
     x = max(0, min(width - roi_width, center_x - roi_width // 2))

@@ -18,6 +18,7 @@ import cv2
 import numpy as np
 
 from config import SETTINGS
+from .localization import locate_stack_column
 from .preprocessing import (
     ImageQuality,
     decode_image,
@@ -273,7 +274,32 @@ class RingCounter:
         started = time.perf_counter()
         image, scale = resize_image(image)
         gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-        roi = build_roi(gray.shape, top, bottom, x_fraction)
+
+        stack_location = None
+        if auto_roi:
+            # Previously this path just assumed the stack sits at the
+            # horizontal center of the frame (x_fraction=0.5) with a
+            # fixed width covering 72% of the image -- confirmed against
+            # real photos to spill into neighbouring stacks/background
+            # whenever the target wasn't actually centered. Now it
+            # searches for the column with the strongest, most regularly
+            # spaced ring-boundary signal instead of assuming.
+            stack_location = locate_stack_column(gray)
+            if not stack_location.reliable:
+                raise RingDetectionError(
+                    "Couldn't automatically find a clear single stack in this photo "
+                    "(too cluttered, multiple stacks, or low contrast). "
+                    "Tap the top and bottom of the target stack to set it manually."
+                )
+            x_fraction = stack_location.x_fraction
+
+        roi = build_roi(
+            gray.shape,
+            top,
+            bottom,
+            x_fraction,
+            width_fraction=stack_location.width_fraction if stack_location else None,
+        )
         quality = quality_metrics(gray, roi.as_tuple())
         if quality.width < 240 or quality.height < 240:
             raise RingDetectionError("Image resolution is too low for reliable counting.")
