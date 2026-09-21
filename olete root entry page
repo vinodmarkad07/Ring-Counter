@@ -1,0 +1,139 @@
+[1mdiff --git a/index.html b/index.html[m
+[1mdeleted file mode 100644[m
+[1mindex ca4ff49..0000000[m
+[1m--- a/index.html[m
+[1m+++ /dev/null[m
+[36m@@ -1,1126 +0,0 @@[m
+[31m-<!DOCTYPE html>[m
+[31m-<html lang="en">[m
+[31m-<head>[m
+[31m-<meta charset="UTF-8">[m
+[31m-<meta name="viewport" content="width=device-width, initial-scale=1.0">[m
+[31m-<title>Ring Stack Gauge</title>[m
+[31m-<link rel="preconnect" href="https://fonts.googleapis.com">[m
+[31m-<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">[m
+[31m-<style>[m
+[31m-  :root{[m
+[31m-    --bg:#12151a;[m
+[31m-    --panel:#181c22;[m
+[31m-    --panel2:#1e232b;[m
+[31m-    --line:#2a323c;[m
+[31m-    --line-soft:#232830;[m
+[31m-    --text:#e7ebef;[m
+[31m-    --text-dim:#8a94a1;[m
+[31m-    --text-faint:#5b6470;[m
+[31m-    --teal:#3fd9c2;[m
+[31m-    --teal-dim:#245f56;[m
+[31m-    --amber:#e8a33d;[m
+[31m-    --amber-dim:#6b4f22;[m
+[31m-    --red:#e6636b;[m
+[31m-    --radius:3px;[m
+[31m-  }[m
+[31m-  *{box-sizing:border-box;}[m
+[31m-  html,body{margin:0;padding:0;background:var(--bg);color:var(--text);[m
+[31m-    font-family:'Inter',ui-sans-serif,system-ui,sans-serif;font-size:14px;}[m
+[31m-  .mono{font-family:'JetBrains Mono',ui-monospace,'SF Mono',monospace;}[m
+[31m-  .app{max-width:1320px;margin:0 auto;padding:22px 20px 60px;}[m
+[31m-  header{display:flex;align-items:baseline;gap:14px;margin-bottom:18px;[m
+[31m-    border-bottom:1px solid var(--line);padding-bottom:14px;}[m
+[31m-  header h1{font-size:19px;font-weight:700;margin:0;letter-spacing:0.2px;}[m
+[31m-  header .tag{color:var(--text-faint);font-size:12px;font-family:'JetBrains Mono',monospace;}[m
+[31m-  .ruler-mark{color:var(--teal);}[m
+[31m-[m
+[31m-  main.grid{display:grid;grid-template-columns:1fr 340px;gap:18px;}[m
+[31m-  @media(max-width:920px){ main.grid{grid-template-columns:1fr;} }[m
+[31m-[m
+[31m-  section.canvas-panel,.card{background:var(--panel);border:1px solid var(--line);[m
+[31m-    border-radius:var(--radius);padding:16px;}[m
+[31m-  section.canvas-panel{display:flex;flex-direction:column;gap:12px;}[m
+[31m-[m
+[31m-  .upload-row{display:flex;align-items:center;gap:12px;flex-wrap:wrap;}[m
+[31m-  .upload-row button{background:var(--panel2);color:var(--text);border:1px solid var(--line);[m
+[31m-    border-radius:var(--radius);padding:7px 12px;font-size:12.5px;cursor:pointer;font-family:inherit;}[m
+[31m-  .upload-row button:hover{border-color:var(--teal-dim);}[m
+[31m-  input[type=file]{color:var(--text-dim);font-size:12.5px;max-width:100%;}[m
+[31m-  input[type=file]::file-selector-button{[m
+[31m-    background:var(--panel2);color:var(--text);border:1px solid var(--line);[m
+[31m-    border-radius:var(--radius);padding:6px 12px;font-size:12.5px;cursor:pointer;margin-right:10px;}[m
+[31m-  #imgInfo{color:var(--text-faint);font-size:12px;}[m
+[31m-[m
+[31m-  .canvas-wrap{position:relative;background:#0b0d10;border:1px solid var(--line-soft);[m
+[31m-    border-radius:var(--radius);min-height:180px;display:flex;align-items:center;justify-content:center;[m
+[31m-    overflow:hidden;}[m
+[31m-  #stage{display:block;width:100%;height:auto;cursor:crosshair;touch-action:none;-webkit-user-select:none;user-select:none;}[m
+[31m-  #emptyState{position:absolute;color:var(--text-faint);font-size:13px;text-align:center;padding:20px;[m
+[31m-    pointer-events:none;}[m
+[31m-[m
+[31m-  .hint{color:var(--text-faint);font-size:12px;line-height:1.5;}[m
+[31m-  .hint b{color:var(--text-dim);}[m
+[31m-[m
+[31m-  .controls{display:grid;grid-template-columns:repeat(5,1fr) auto;gap:14px 18px;align-items:end;}[m
+[31m-  @media(max-width:700px){ .controls{grid-template-columns:1fr 1fr;} }[m
+[31m-  .controls label{display:flex;flex-direction:column;gap:5px;font-size:11.5px;color:var(--text-dim);[m
+[31m-    text-transform:uppercase;letter-spacing:0.4px;}[m
+[31m-  .controls label span{color:var(--teal);font-size:12px;text-transform:none;letter-spacing:0;}[m
+[31m-  input[type=range]{accent-color:var(--teal);width:100%;}[m
+[31m-  .controls select{background:#0f1216;border:1px solid var(--line);color:var(--text);border-radius:var(--radius);[m
+[31m-    padding:7px 8px;font-size:12.5px;font-family:'Inter',sans-serif;width:100%;}[m
+[31m-  button{background:var(--panel2);color:var(--text);border:1px solid var(--line);[m
+[31m-    border-radius:var(--radius);padding:9px 14px;font-size:12.5px;cursor:pointer;font-family:inherit;[m
+[31m-    transition:border-color .15s;}[m
+[31m-  button:hover{border-color:var(--teal-dim);}[m
+[31m-  button.primary{background:var(--teal-dim);border-color:var(--teal);color:#eafff9;font-weight:600;}[m
+[31m-  button.primary:hover{background:#2c7a6e;}[m
+[31m-  button:disabled{opacity:.4;cursor:not-allowed;}[m
+[31m-[m
+[31m-  #profile{width:100%;height:90px;display:block;background:#0b0d10;border:1px solid var(--line-soft);[m
+[31m-    border-radius:var(--radius);}[m
+[31m-[m
+[31m-  .card + .card{margin-top:18px;}[m
+[31m-  .card h2{font-size:12px;text-transform:uppercase;letter-spacing:0.6px;color:var(--text-dim);[m
+[31m-    margin:0 0 12px;font-weight:600;}[m
+[31m-[m
+[31m-  .tabs{display:flex;gap:6px;margin-bottom:12px;}[m
+[31m-  .tab{flex:1;background:var(--panel2);border:1px solid var(--line);color:var(--text-dim);[m
+[31m-    padding:7px 6px;font-size:11.5px;border-radius:var(--radius);cursor:pointer;}[m
+[31m-  .tab.active{border-color:var(--teal);color:var(--teal);}[m
+[31m-  .tab-panel{display:flex;flex-direction:column;gap:10px;}[m
+[31m-  .tab-panel.hidden{display:none;}[m
+[31m-  .tab-panel label{display:flex;flex-direction:column;gap:4px;font-size:11.5px;color:var(--text-dim);}[m
+[31m-  .tab-panel input,.tab-panel select{[m
+[31m-    background:#0f1216;border:1px solid var(--line);color:var(--text);border-radius:var(--radius);[m
+[31m-    padding:7px 8px;font-size:13px;font-family:'JetBrains Mono',monospace;}[m
+[31m-  .tab-panel select{font-family:'Inter',sans-serif;}[m
+[31m-[m
+[31m-  .scale-readout{margin-top:12px;padding:10px 12px;background:#0f1216;border:1px solid var(--line-soft);[m
+[31m-    border-radius:var(--radius);font-size:13px;color:var(--teal);}[m
+[31m-  .scale-crosscheck{margin-top:6px;color:var(--text-faint);font-size:11.5px;min-height:14px;}[m
+[31m-[m
+[31m-  .ring-count{display:flex;align-items:baseline;gap:8px;margin-bottom:6px;}[m
+[31m-  .ring-count span{font-size:40px;font-weight:700;font-family:'JetBrains Mono',monospace;color:var(--teal);[m
+[31m-    line-height:1;}[m
+[31m-  .ring-count label{color:var(--text-dim);font-size:12px;}[m
+[31m-  .stack-total{color:var(--text-dim);font-size:12px;margin-bottom:10px;}[m
+[31m-  .stack-total b{color:var(--text);}[m
+[31m-[m
+[31m-  table{width:100%;border-collapse:collapse;font-size:12px;}[m
+[31m-  th{text-align:left;color:var(--text-faint);font-weight:600;text-transform:uppercase;[m
+[31m-    font-size:10px;letter-spacing:0.4px;padding:4px 6px;border-bottom:1px solid var(--line);}[m
+[31m-  td{padding:4px 6px;border-bottom:1px solid var(--line-soft);font-family:'JetBrains Mono',monospace;[m
+[31m-    color:var(--text-dim);}[m
+[31m-  tr.flag td{color:var(--red);}[m
+[31m-  tbody tr:hover td{color:var(--text);}[m
+[31m-[m
+[31m-  .legend{display:flex;gap:16px;font-size:11px;color:var(--text-faint);margin-top:2px;}[m
+[31m-  .legend span{display:inline-flex;align-items:center;gap:5px;}[m
+[31m-  .swatch{width:14px;height:2px;display:inline-block;}[m
+[31m-</style>[m
+[31m-</head>[m
+[31m-<body>[m
+[31m-<div class="app">[m
+[31m-  <header>[m
+[31m-    <h1>Ring Stack <span class="ruler-mark">Gauge</span></h1>[m
+[31m-    <span class="tag">px&nbsp;&rarr;&nbsp;mm &middot; edge-detected ring count</span>[m
+[31m-  </header>[m
+[31m-[m
+[31m-  <main class="grid">[m
+[31m-    <section class="canvas-panel">[m
+[31m-      <div class="upload-row">[m
+[31m-        <input type="file" id="fileInputCamera" accept="image/*" capture="environment" style="display:none;">
